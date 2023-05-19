@@ -1,0 +1,5 @@
+1.gcc   一般发行版自带
+2.nasm  yum install nasm
+3. bochs 官网下载，按书中configure, make, make install; make环境可能出现缺少gtk.h, yum install gtk2 gtk2-devel
+
+
