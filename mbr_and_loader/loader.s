@@ -148,13 +148,8 @@ p_mode_start:
 enter_kernel:
     call kernel_init
     mov esp, 0xc009f000
-    jump KERNEL_ENTRY_POINT
-
-
-
-    mov byte [gs:160], 'V'
-
-
+    mov byte [gs:160], 'K'
+    jmp KERNEL_ENTRY_POINT
 
 setup_page:
     mov ecx, 4096
