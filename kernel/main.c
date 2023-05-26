@@ -1,7 +1,8 @@
 #include "print.h"
 int main(){
-    put_str("entered kernel");
-    put_int(0);
-    put_int(0x123);
+    put_char('a');
+    put_char('b');
+    put_char('c');
+    put_char('d');
     while(1);
 }
