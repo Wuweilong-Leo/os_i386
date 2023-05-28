@@ -25,7 +25,7 @@ static void set_cursor(uint16_t target)
 
 static uint16_t get_cursor()
 {
-    uint8_t cur_pos_low, cur_pos_high = 0;
+    uint16_t cur_pos_low = 0, cur_pos_high = 0;
     uint16_t crt_addr_reg = CRT_ADDR_REG;
     uint16_t crt_data_reg = CRT_DATA_REG;
     uint8_t cur_pos_high_index = CUR_POS_HIGH_INDEX;
@@ -38,7 +38,7 @@ static uint16_t get_cursor()
     asm volatile("inb %%dx, %%al"
                  : "=a"(cur_pos_low)
                  : "d"(crt_data_reg));
-    return ((uint16_t)cur_pos_high << 8) & 0xff00 + cur_pos_low;
+    return ((cur_pos_high << 8) & 0xff00) | (cur_pos_low & 0x00ff);
 }
 
 static void memcpy(void *dst, void *src, uint32_t size)
