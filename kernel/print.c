@@ -133,10 +133,9 @@ void put_int(uint32_t num)
         }
         else
         {
-            p = low + 'A';
+            p = low - 10 + 'A';
         }
-        for_print[off] = p;
-        off--;
+        for_print[off--] = p;
         num_tmp >>= 4;
     }
     put_str(for_print + (++off));

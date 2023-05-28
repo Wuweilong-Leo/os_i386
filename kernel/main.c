@@ -2,8 +2,11 @@
 
 int main()
 {
-    put_str("I am kernel, here is a migic num:\n");
-    put_int(0x1234567);
+    for (int i = 0; i < 1000; i++)
+    {
+        put_int(i);
+        put_char('\n');
+    }
     while (1)
         ;
 }
