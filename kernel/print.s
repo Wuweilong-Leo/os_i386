@@ -61,7 +61,7 @@ put_char:
     mov byte [gs:bx], 0x07
     shr bx, 1
     inc bx
-    ;判断是不是超过一行了
+    ;判断是不是超过一个屏幕了
     cmp bx, 2000
     jl .set_cursor
 
@@ -81,7 +81,7 @@ put_char:
 
 .roll_screen:
     cld
-    mov eax, 960
+    mov ecx, 960
 
     mov esi, 0xc00b80a0
     mov edi, 0xc00b8000
