@@ -113,3 +113,31 @@ void put_str(char *message)
         tmp++;
     }
 }
+
+void put_int(uint32_t num)
+{
+    char for_print[9] = {0};
+    uint8_t off = 7;
+    uint32_t num_tmp = num;
+    if (num_tmp == 0)
+    {
+        for_print[off--] = '0';
+    }
+    while (num_tmp != 0)
+    {
+        uint8_t low = num_tmp & 0xf;
+        char p;
+        if (low >= 0 && low <= 9)
+        {
+            p = low + '0';
+        }
+        else
+        {
+            p = low + 'A';
+        }
+        for_print[off] = p;
+        off--;
+        num_tmp >>= 4;
+    }
+    put_str(for_print + (++off));
+}
