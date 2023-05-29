@@ -5,18 +5,17 @@
 #define CUR_POS_HIGH_INDEX 0x0e
 #define CUR_POS_LOW_INDEX 0x0f
 #define BLK_BACK_WHT_WORD 0x07 // 黑底白字
-volatile uint8_t *const video_base_addr = (volatile uint8_t *const)0xc00b8000;
-uint8_t *roll_video_src_addr = (uint8_t *)0xc00b80a0;
-uint8_t *roll_video_dst_addr = (uint8_t *)0xc00b8000;
-
+static volatile uint8_t *const video_base_addr = (volatile uint8_t *const)0xc00b8000;
+static const uint8_t *roll_video_src_addr = (const uint8_t *)0xc00b80a0;
+static const uint8_t *roll_video_dst_addr = (const uint8_t *)0xc00b8000;
+static const uint16_t crt_addr_reg = CRT_ADDR_REG;
+static const uint16_t crt_data_reg = CRT_DATA_REG;
+static const uint8_t cur_pos_high_index = CUR_POS_HIGH_INDEX;
+static const uint8_t cur_pos_low_index = CUR_POS_LOW_INDEX;
 static void set_cursor(uint16_t target)
 {
     uint8_t high = (target >> 8) & 0xff;
     uint8_t low = target & 0xff;
-    uint16_t crt_addr_reg = CRT_ADDR_REG;
-    uint16_t crt_data_reg = CRT_DATA_REG;
-    uint8_t cur_pos_high_index = CUR_POS_HIGH_INDEX;
-    uint8_t cur_pos_low_index = CUR_POS_LOW_INDEX;
     asm volatile("outb %%al, %%dx" ::"d"(crt_addr_reg), "a"(cur_pos_high_index));
     asm volatile("outb %%al, %%dx" ::"d"(crt_data_reg), "a"(high));
     asm volatile("outb %%al, %%dx" ::"d"(crt_addr_reg), "a"(cur_pos_low_index));
@@ -25,11 +24,8 @@ static void set_cursor(uint16_t target)
 
 static uint16_t get_cursor()
 {
-    uint16_t cur_pos_low = 0, cur_pos_high = 0;
-    uint16_t crt_addr_reg = CRT_ADDR_REG;
-    uint16_t crt_data_reg = CRT_DATA_REG;
-    uint8_t cur_pos_high_index = CUR_POS_HIGH_INDEX;
-    uint8_t cur_pos_low_index = CUR_POS_LOW_INDEX;
+    uint16_t cur_pos_low = 0;
+    uint16_t cur_pos_high = 0;
     asm volatile("outb %%al, %%dx" ::"d"(crt_addr_reg), "a"(cur_pos_high_index));
     asm volatile("inb %%dx, %%al"
                  : "=a"(cur_pos_high)
@@ -41,7 +37,7 @@ static uint16_t get_cursor()
     return ((cur_pos_high << 8) & 0xff00) | (cur_pos_low & 0x00ff);
 }
 
-static void memcpy(void *dst, void *src, uint32_t size)
+static void memcpy(void *const dst, void *const src, uint32_t size)
 {
     uint8_t *dst_u8 = (uint8_t *)dst;
     uint8_t *src_u8 = (uint8_t *)src;
