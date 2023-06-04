@@ -13,29 +13,17 @@ intr_entry_table:
 section .text
 intr%1entry:
     %2 ;压入0, 或者不压
-    ;保存上下文
-    push ds
-    push es
-    push fs
-    push gs
-    pushad
-    
-    ; 中断结束命令
-    mov al, 0x20
-    out 0xa0, al
-    out 0x20, al
 
     ; 中断函数
     push intr_str
     call put_str
     add esp, 4 ;跳过put_str的参数
 
-    ; 恢复上下文
-    popad
-    pop gs
-    pop fs
-    pop es
-    pop ds
+    ; 中断结束命令
+    mov al, 0x20
+    out 0xa0, al
+    out 0x20, al
+    
     ;跳过error_code
     add esp, 4
     iret
@@ -76,5 +64,5 @@ VECTOR 0x1c, ZERO
 VECTOR 0x1d, ZERO
 VECTOR 0x1e, ERROR_CODE
 VECTOR 0x1f, ZERO
-
 VECTOR 0x20, ZERO
+

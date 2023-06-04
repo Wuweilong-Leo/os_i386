@@ -19,11 +19,11 @@ extern intr_handler intr_entry_table[IDT_DESC_CNT];
 
 static void make_idt_desc(struct gate_desc *p_gdesc, uint8_t attr, intr_handler func)
 {
-    p_gdesc->func_offset_low_word = ((uint32_t)func) & 0x0000ffff;
+    p_gdesc->func_offset_low_word = (uint32_t)func & 0x0000ffff;
     p_gdesc->selector = SELECTOR_K_CODE;
     p_gdesc->dcount = 0;
     p_gdesc->attribute = attr;
-    p_gdesc->func_offset_high_word = (((uint32_t)func) & 0xffff0000) >> 16;
+    p_gdesc->func_offset_high_word = ((uint32_t)func & 0xffff0000) >> 16;
 }
 
 static void idt_desc_init()
@@ -31,7 +31,7 @@ static void idt_desc_init()
     uint32_t i;
     for (i = 0; i < IDT_DESC_CNT; i++)
     {
-        make_idt_desc(&idt[i], IDT_DESC_DPL0, intr_entry_table[i]);
+        make_idt_desc(&idt[i], IDT_DESC_ATTR_DPL0, intr_entry_table[i]);
     }
     put_str("   idt_desc_init done\n");
 }
@@ -61,7 +61,7 @@ void idt_init()
     idt_desc_init();
     pic_init();
 
-    uint64_t idt_base_addr = (((uint64_t)idt) << 16) & 0xffffffff0000;
+    uint64_t idt_base_addr = ((uint64_t)idt << 16) & 0xffffffff0000;
     uint64_t idt_limit = sizeof(idt) - 1;
     uint64_t idt_oper = idt_base_addr | idt_limit;
     asm volatile("lidt %0" ::"m"(idt_oper));
