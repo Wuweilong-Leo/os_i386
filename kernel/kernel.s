@@ -13,7 +13,13 @@ intr_entry_table:
 section .text
 intr%1entry:
     %2 ;压入0, 或者不压
-
+    ;压入上下文
+    push ds
+    push es
+    push fs
+    push gs
+    pushad
+    
     ; 中断函数
     push intr_str
     call put_str
@@ -23,6 +29,13 @@ intr%1entry:
     mov al, 0x20
     out 0xa0, al
     out 0x20, al
+    
+    ;弹出上下文
+    popad
+    pop gs
+    pop fs
+    pop es
+    pop ds
     
     ;跳过error_code
     add esp, 4
