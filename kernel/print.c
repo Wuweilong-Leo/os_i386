@@ -1,5 +1,4 @@
 #include "print.h"
-#define asm __asm
 #define CRT_ADDR_REG 0x03d4
 #define CRT_DATA_REG 0x03d5
 #define CUR_POS_HIGH_INDEX 0x0e

@@ -1,12 +1,11 @@
 #include "print.h"
-
+#include "init.h"
 int main()
 {
-    for (int i = 0; i < 1000; i++)
-    {
-        put_int(i);
-        put_char('\n');
-    }
+    put_str("I AM KERNEL\n");
+    init_all();
+    asm volatile("sti");
+
     while (1)
         ;
 }
