@@ -2,8 +2,8 @@
 %define ERROR_CODE nop
 %define ZERO push 0
 
-extern put_str;
-
+extern put_str
+extern idt_table
 section .data
 intr_str db "interrupt occur!", 0xa, 0
 global intr_entry_table
@@ -19,32 +19,36 @@ intr%1entry:
     push fs
     push gs
     pushad
-    
-    ; 中断函数
-    push intr_str
-    call put_str
-    add esp, 4 ;跳过put_str的参数
 
     ; 中断结束命令
     mov al, 0x20
     out 0xa0, al
     out 0x20, al
     
-    ;弹出上下文
+    ;压入中断号
+    push %1
+
+    call [idt_table + %1*4]
+    jmp intr_exit
+
+section .data
+    dd intr%1entry
+%endmacro
+
+section .text
+global intr_exit
+
+intr_exit:
+    
+    add esp, 4
     popad
     pop gs
     pop fs
     pop es
     pop ds
-    
-    ;跳过error_code
     add esp, 4
     iret
-section .data
-    dd intr%1entry
 
-
-%endmacro
 VECTOR 0x00, ZERO
 VECTOR 0x01, ZERO
 VECTOR 0x02, ZERO

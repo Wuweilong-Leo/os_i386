@@ -17,6 +17,10 @@ static struct gate_desc idt[IDT_DESC_CNT];
 
 extern intr_handler intr_entry_table[IDT_DESC_CNT];
 
+char *intr_name[IDT_DESC_CNT];
+
+intr_handler idt_table[IDT_DESC_CNT];
+
 static void make_idt_desc(struct gate_desc *p_gdesc, uint8_t attr, intr_handler func)
 {
     p_gdesc->func_offset_low_word = (uint32_t)func & 0x0000ffff;
@@ -55,10 +59,56 @@ static void pic_init()
     outb(PIC_S_DATA, 0xff);
     put_str("   pic_init done\n");
 }
+
+static void general_intr_handler(uint8_t vec_nr)
+{
+    if (vec_nr == 0x27 || vec_nr == 0x2f)
+    {
+        return;
+    }
+    put_str("int vector : 0x");
+    put_int(vec_nr);
+    put_char('\n');
+    put_str(intr_name[vec_nr]);
+    put_char('\n');
+}
+
+const char *intr_str[] = {
+    "#DE",
+    "#DB",
+    "#NMI",
+    "#BP",
+    "#OF",
+    "#BR",
+    "#UD",
+    "#NM",
+    "#DF",
+    "#CSO",
+    "TS",
+    "NP",
+    "SS",
+    "GP",
+    "PF",
+    NULL,
+    "MF",
+    "AC",
+    "MC",
+    "XF"};
+
+static void exception_init()
+{
+    for (uint32_t i = 0; i < IDT_DESC_CNT; i++)
+    {
+        idt_table[i] = general_intr_handler;
+        intr_name[i] = intr_str[i];
+    }
+}
+
 void idt_init()
 {
     put_str("idt_init start\n");
     idt_desc_init();
+    exception_init();
     pic_init();
 
     uint64_t idt_base_addr = ((uint64_t)idt << 16) & 0xffffffff0000;
