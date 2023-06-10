@@ -159,26 +159,30 @@ setup_page:
     inc esi
     loop .clear_page_dir
 
+; 页目录地址：0x100000
+; 第一张页表地址：0x101000
 .creat_pde:
     mov eax, PAGE_DIR_TABLE_POS
     add eax, 0x1000
-    mov ebx, eax
+    mov ebx, eax; 此时eax里是第一张页表的地址
 
     or eax, PG_US_U|PG_RW_W|PG_P
-    mov [PAGE_DIR_TABLE_POS + 0x0], eax
-    mov [PAGE_DIR_TABLE_POS + 0xc00], eax
+    mov [PAGE_DIR_TABLE_POS + 0x0], eax ; 页目录项0指向第一张页表
+    mov [PAGE_DIR_TABLE_POS + 0xc00], eax; 页目录项768指向第一张页表
     sub eax, 0x1000
-    mov [PAGE_DIR_TABLE_POS + 4092], eax
+    mov [PAGE_DIR_TABLE_POS + 4092], eax; 最后一个页目录项指向页目录的地址
 
     mov ecx, 256
     mov esi, 0
     mov edx, PG_US_U|PG_RW_W|PG_P
+;填第一张页表的页表项，完成映射内存低1M
 .creat_pte:
     mov [ebx + esi * 4], edx
     add edx, 4096
     inc esi
     loop .creat_pte
 
+    ; 把页目录769-1023依次写入第二个及之后的页表地址（第二个页表地址是0x2000,每个页表0x1000大小）
     mov eax, PAGE_DIR_TABLE_POS
     add eax, 0x2000
     or eax, PG_US_U|PG_RW_W|PG_P
