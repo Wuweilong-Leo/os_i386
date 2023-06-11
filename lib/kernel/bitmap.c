@@ -22,7 +22,8 @@ int32_t bitmap_scan(struct bitmap *btmp, uint32_t cnt) {
     while (bitmap_scan_test(btmp, cur_idx)) {
       cur_idx++;
     }
-    while (!bitmap_scan_test(btmp, cur_idx)) {
+    while (cur_idx < (btmp->btmp_bytes_len * 8) &&
+           !bitmap_scan_test(btmp, cur_idx)) {
       cnt_tmp++;
       if (cnt_tmp == cnt) {
         return cur_idx - cnt + 1;
