@@ -33,4 +33,28 @@ static void mem_pool_init(uint32_t all_mem) {
   user_pool.pool_size = user_free_pages * PG_SIZE;
   kernel_pool.pool_bitmap.bits = (void *)MEM_BITMAP_BASE;
   user_pool.pool_bitmap.bits = (void *)MEM_BITMAP_BASE + kbm_len;
+
+  put_str("   kernel_pool_bitmap_start:");
+  put_int((int)kernel_pool.pool_bitmap.bits);
+  put_str("   kernel_pool_phy_addr_start");
+  put_int((int)kernel_pool.paddr_start);
+  put_str("\n");
+  put_str("   user_pool_bitmap_start:");
+  put_int((int)user_pool.pool_bitmap.bits);
+  put_str("   user_pool_phy_addr_start");
+  put_int((int)user_pool.paddr_start);
+  put_str("\n");
+
+  bitmap_init(&kernel_pool.pool_bitmap);
+  bitmap_init(&user_pool.pool_bitmap);
+
+  // 虚拟内存的页数目应该和物理内存一样
+  kernel_vaddr.vaddr_bitmap.btmp_bytes_len = kbm_len;
+  kernel_vaddr.vaddr_bitmap.bits =
+      (void *)(MEM_BITMAP_BASE + kbm_len + ubm_len);
+
+  kernel_vaddr.vaddr_start = K_HEAP_START;
+
+  bitmap_init(&kernel_vaddr.vaddr_bitmap);
+  put_str("   mem_pool_init done\n");
 }
