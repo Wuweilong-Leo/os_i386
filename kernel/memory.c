@@ -1,4 +1,5 @@
 #include "memory.h"
+#include "print.h"
 #define PG_SIZE 4096
 #define MEM_BITMAP_BASE 0XC009A000
 #define K_HEAP_START 0XC0100000
@@ -16,13 +17,15 @@ struct virtual_addr kernel_vaddr;
 #define PAGE_TAB_CNT 255
 static void mem_pool_init(uint32_t all_mem) {
   put_str(" mem_pool_init start\n");
-  uint32_t page_table_size =
-      PG_SIZE * (PAGE_DIR_CNT + PAGE_TAB_CNT); // 一共是255个页表 + 1个页目录
+  // 一共是255个页表 + 1个页目录
+  uint32_t page_table_size = PG_SIZE * (PAGE_DIR_CNT + PAGE_TAB_CNT);
   uint32_t used_mem = page_table_size + PAGE_DIR_START_ADDR;
   uint32_t free_mem = all_mem - used_mem;
   uint32_t all_free_pages = free_mem / PG_SIZE;
+  // 用户和内核各用一半物理内存
   uint32_t kernel_free_pages = all_free_pages / 2;
   uint32_t user_free_pages = all_free_pages - kernel_free_pages;
+  // 位图每一位代表一页=4K
   uint32_t kbm_len = kernel_free_pages / 8;
   uint32_t ubm_len = user_free_pages / 8;
   uint32_t kp_start = used_mem;
@@ -34,14 +37,14 @@ static void mem_pool_init(uint32_t all_mem) {
   kernel_pool.pool_bitmap.bits = (void *)MEM_BITMAP_BASE;
   user_pool.pool_bitmap.bits = (void *)MEM_BITMAP_BASE + kbm_len;
 
-  put_str("   kernel_pool_bitmap_start:");
+  put_str(" kernel_pool_bitmap_start: ");
   put_int((int)kernel_pool.pool_bitmap.bits);
-  put_str("   kernel_pool_phy_addr_start");
+  put_str(" kernel_pool_phy_addr_start: ");
   put_int((int)kernel_pool.paddr_start);
   put_str("\n");
-  put_str("   user_pool_bitmap_start:");
+  put_str(" user_pool_bitmap_start: ");
   put_int((int)user_pool.pool_bitmap.bits);
-  put_str("   user_pool_phy_addr_start");
+  put_str(" user_pool_phy_addr_start: ");
   put_int((int)user_pool.paddr_start);
   put_str("\n");
 
@@ -56,5 +59,12 @@ static void mem_pool_init(uint32_t all_mem) {
   kernel_vaddr.vaddr_start = K_HEAP_START;
 
   bitmap_init(&kernel_vaddr.vaddr_bitmap);
-  put_str("   mem_pool_init done\n");
+  put_str(" mem_pool_init done\n");
+}
+
+void mem_init() {
+  put_str("mem_init start\n");
+  uint32_t mem_byte_total = (*(uint32_t *)0xb00);
+  mem_pool_init(mem_byte_total);
+  put_str("mem_init done\n");
 }
