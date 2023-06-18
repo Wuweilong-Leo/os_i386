@@ -4,8 +4,15 @@
 #include "print.h"
 #include "stdint.h"
 #include "string.h"
-
-void bitmap_init(struct bitmap *btmp) { memset(btmp, 0, btmp->btmp_bytes_len); }
+static inline uint32_t bit_num2bytes_len(uint32_t bit_num) {
+  return (bit_num % 8 == 0) ? (bit_num / 8) : (bit_num / 8 + 1);
+}
+void bitmap_init(struct bitmap *btmp, uint32_t base, uint32_t bit_num) {
+  btmp->bits = (uint8_t *)base;
+  btmp->bit_num = bit_num;
+  btmp->btmp_bytes_len = bit_num2bytes_len(bit_num);
+  memset(btmp->bits, 0, btmp->btmp_bytes_len);
+}
 
 bool bitmap_scan_test(struct bitmap *btmp, uint32_t bit_idx) {
   uint32_t byte_off = bit_idx / 8;
@@ -17,13 +24,12 @@ bool bitmap_scan_test(struct bitmap *btmp, uint32_t bit_idx) {
 // 连续申请cnt个位，返回开始索引
 int32_t bitmap_scan(struct bitmap *btmp, uint32_t cnt) {
   uint32_t cur_idx = 0;
-  while (cur_idx < (btmp->btmp_bytes_len * 8)) {
+  while (cur_idx < btmp->bit_num) {
     uint32_t cnt_tmp = 0;
     while (bitmap_scan_test(btmp, cur_idx)) {
       cur_idx++;
     }
-    while (cur_idx < (btmp->btmp_bytes_len * 8) &&
-           !bitmap_scan_test(btmp, cur_idx)) {
+    while (cur_idx < btmp->bit_num && !bitmap_scan_test(btmp, cur_idx)) {
       cnt_tmp++;
       if (cnt_tmp == cnt) {
         return cur_idx - cnt + 1;
