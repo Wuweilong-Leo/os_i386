@@ -131,7 +131,7 @@ static void v2p_mapping(void *vaddr, void *paddr) {
       *pte = (paddr_tmp | PG_US_U | PG_RW_W | PG_P_1);
     }
   } else {
-    // 如果页目录不存在，说明没对应页表，先申请4K物理内存作为页表。
+    // 如果页目录项不存在，说明没对应页表，先申请4K物理内存作为页表。
     uint32_t pt_paddr = (uint32_t)paddr_get(&kernel_phy_pool);
     // 把页表物理地址写入页目录, 一旦写入，可以通过pte来访问页表项了
     *pde = pt_paddr | PG_US_U | PG_RW_W | PG_P_1;
@@ -143,6 +143,7 @@ static void v2p_mapping(void *vaddr, void *paddr) {
 }
 
 void *malloc_page(enum pool_flags pf, uint32_t pg_cnt) {
+  // 保证申请的内存小于15M, 因为物理内存最大32M，内核用户各分一半。
   ASSERT(pg_cnt > 0 && pg_cnt < 3840);
   void *vaddr_start = vaddr_get(pf, pg_cnt);
   if (vaddr_start == NULL) {
