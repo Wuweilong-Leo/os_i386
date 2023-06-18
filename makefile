@@ -3,7 +3,7 @@ ENTRY_POINT = 0xc0001500
 AS = nasm
 CC = gcc
 LD = ld
-LIB = -I lib/ -I lib/kernel/ -I lib/user/ -I kernel/ -I device/
+LIB = -I lib/ -I lib/kernel/ -I lib/user/ -I kernel/ -I device/ -I thread/
 ASFLAGS = -f elf
 
 CFLAGS = -m32 -Wall $(LIB) -c -fno-builtin -std=c99 
@@ -13,10 +13,10 @@ LDFALGS = -Ttext $(ENTRY_POINT) -e main  -m elf_i386 -Map $(BUILD_DIR)/kernel.ma
 OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/init.o $(BUILD_DIR)/interrupt.o \
 	$(BUILD_DIR)/timer.o  $(BUILD_DIR)/kernel.o $(BUILD_DIR)/print.o\
 	$(BUILD_DIR)/debug.o $(BUILD_DIR)/memory.o $(BUILD_DIR)/bitmap.o\
-	$(BUILD_DIR)/string.o
+	$(BUILD_DIR)/string.o $(BUILD_DIR)/thread.o
 
 
-$(BUILD_DIR)/main.o: kernel/main.c lib/kernel/print.h lib/stdint.h kernel/init.h kernel/debug.h
+$(BUILD_DIR)/main.o: kernel/main.c lib/kernel/print.h lib/stdint.h kernel/init.h kernel/debug.h thread/thread.h
 	$(CC) $(CFLAGS) $< -o $@
 
 $(BUILD_DIR)/init.o: kernel/init.c kernel/init.h lib/kernel/print.h kernel/memory.h
@@ -42,6 +42,9 @@ $(BUILD_DIR)/bitmap.o: lib/kernel/bitmap.c lib/kernel/bitmap.h lib/string.h lib/
 	$(CC) $(CFLAGS) $< -o $@
 
 $(BUILD_DIR)/string.o: lib/string.c lib/string.h lib/stdint.h 
+	$(CC) $(CFLAGS) $< -o $@
+
+$(BUILD_DIR)/thread.o: thread/thread.c thread/thread.h lib/stdint.h kernel/global.h kernel/memory.h lib/string.h
 	$(CC) $(CFLAGS) $< -o $@
 
 $(BUILD_DIR)/kernel.o: kernel/kernel.s
