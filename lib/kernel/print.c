@@ -1,9 +1,16 @@
 #include "print.h"
+
 #define CRT_ADDR_REG 0x03d4
 #define CRT_DATA_REG 0x03d5
 #define CUR_POS_HIGH_INDEX 0x0e
 #define CUR_POS_LOW_INDEX 0x0f
 #define BLK_BACK_WHT_WORD 0x07 // 黑底白字
+
+#define SCREEN_COL_MAX 80
+#define SCREEN_ROW_MAX 25
+#define SCREEN_MAX (SCREEN_ROW_MAX * SCREEN_COL_MAX)
+#define ROLL_SCREEN() memcpy(roll_video_dst_addr, roll_video_src_addr, 960 * 4)
+
 static volatile uint8_t *const video_base_addr =
     (volatile uint8_t *const)0xc00b8000;
 static const uint8_t *roll_video_src_addr = (const uint8_t *)0xc00b80a0;
@@ -12,7 +19,17 @@ static const uint16_t crt_addr_reg = CRT_ADDR_REG;
 static const uint16_t crt_data_reg = CRT_DATA_REG;
 static const uint8_t cur_pos_high_index = CUR_POS_HIGH_INDEX;
 static const uint8_t cur_pos_low_index = CUR_POS_LOW_INDEX;
-static void set_cursor(uint16_t target) {
+
+#define CHECK_OUT_OF_SCREEN(next_cur_pos)                                      \
+  do {                                                                         \
+    if (next_cur_pos >= SCREEN_MAX) {                                          \
+      ROLL_SCREEN();                                                           \
+      clean_last_line();                                                       \
+      next_cur_pos = SCREEN_MAX - SCREEN_COL_MAX;                              \
+    }                                                                          \
+  } while (0);
+
+void set_cursor(uint16_t target) {
   uint8_t high = (target >> 8) & 0xff;
   uint8_t low = target & 0xff;
   asm volatile("outb %%al, %%dx" ::"d"(crt_addr_reg), "a"(cur_pos_high_index));
@@ -21,7 +38,7 @@ static void set_cursor(uint16_t target) {
   asm volatile("outb %%al, %%dx" ::"d"(crt_data_reg), "a"(low));
 }
 
-static uint16_t get_cursor() {
+uint16_t get_cursor() {
   uint16_t cur_pos_low = 0;
   uint16_t cur_pos_high = 0;
   asm volatile("outb %%al, %%dx" ::"d"(crt_addr_reg), "a"(cur_pos_high_index));
@@ -39,11 +56,6 @@ static void memcpy(void *const dst, void *const src, uint32_t size) {
   }
 }
 
-#define SCREEN_COL_MAX 80
-#define SCREEN_ROW_MAX 25
-#define SCREEN_MAX (SCREEN_ROW_MAX * SCREEN_COL_MAX)
-#define ROLL_SCREEN memcpy(roll_video_dst_addr, roll_video_src_addr, 960 * 4);
-
 static void clean_last_line() {
   uint32_t offset = 3840;
   for (uint32_t i = 0; i < 80; i++) {
@@ -51,15 +63,6 @@ static void clean_last_line() {
     video_base_addr[offset++] = BLK_BACK_WHT_WORD;
   }
 }
-
-#define CHECK_OUT_OF_SCREEN(next_cur_pos)                                      \
-  do {                                                                         \
-    if (next_cur_pos >= SCREEN_MAX) {                                          \
-      ROLL_SCREEN;                                                             \
-      clean_last_line();                                                       \
-      next_cur_pos = SCREEN_MAX - SCREEN_COL_MAX;                              \
-    }                                                                          \
-  } while (0);
 
 void put_char(uint8_t c) {
   uint16_t cur_pos = get_cursor();

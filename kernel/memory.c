@@ -164,7 +164,7 @@ void *malloc_page(enum pool_flags pf, uint32_t pg_cnt) {
 }
 
 // 原函数： get_kernel_pages
-void *kernel_malloc(uint32_t pg_cnt) {
+void *kernel_pages_malloc(uint32_t pg_cnt) {
   void *vaddr = malloc_page(PF_KERNEL, pg_cnt);
   if (vaddr == NULL) {
     return NULL;

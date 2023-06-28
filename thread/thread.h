@@ -1,5 +1,6 @@
 #ifndef THREAD_H
 #define THREAD_H
+#include "list.h"
 #include "stdint.h"
 typedef void (*thread_func)(void *);
 enum task_status {
@@ -51,8 +52,16 @@ typedef struct thread_control_block {
   enum task_status status;
   uint8_t priority;
   char name[16];
+  uint8_t ticks;
+  uint32_t elapsed_ticks;
+  struct list_elem general_tag;
+  struct list_elem all_list_tag;
+  uint32_t *pg_dir;
   uint32_t stack_magic;
 } tcb;
 
 tcb *thread_run(char *name, uint8_t prio, thread_func func, void *func_arg);
+void thread_all_init();
+tcb *running_thread_get();
+
 #endif

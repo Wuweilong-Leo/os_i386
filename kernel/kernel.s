@@ -5,7 +5,6 @@
 extern put_str
 extern idt_table
 section .data
-intr_str db "interrupt occur!", 0xa, 0
 global intr_entry_table
 
 intr_entry_table:
@@ -46,7 +45,7 @@ intr_exit:
     pop fs
     pop es
     pop ds
-    add esp, 4
+    add esp, 4 ;越过error_code
     iret
 
 VECTOR 0x00, ZERO
