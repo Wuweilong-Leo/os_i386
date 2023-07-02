@@ -1,4 +1,5 @@
 #include "init.h"
+#include "console.h"
 #include "interrupt.h"
 #include "memory.h"
 #include "print.h"
@@ -7,7 +8,8 @@
 void init_all() {
   put_str("init_all\n");
   idt_init();
-  timer_init();
   mem_init();
   thread_all_init();
+  timer_init();
+  console_init();
 }

@@ -96,9 +96,14 @@ static void main_thread_make() {
 void schedule() {
   // 保证切换时中断关闭
   ASSERT(intr_get_status() == INTR_OFF);
-  list_push_back(&thread_ready_list, &running_thread->general_tag);
-  running_thread->ticks = running_thread->priority;
-  running_thread->status = TASK_READY;
+  // 只是因为时间片到了
+  if (running_thread->status == TASK_RUNNING) {
+    list_push_back(&thread_ready_list, &running_thread->general_tag);
+    running_thread->ticks = running_thread->priority;
+    running_thread->status = TASK_READY;
+  } else {
+    // 资源抢不到而阻塞不应该再加入ready队列
+  }
 
   // 必须保证ready队列有等待的线程
   ASSERT(!list_empty(&thread_ready_list));
@@ -117,4 +122,34 @@ void thread_all_init() {
   list_init(&thread_all_list);
   main_thread_make();
   put_str("thread_all_init done\n");
+}
+
+// 阻塞现在的线程。
+void thread_block(enum task_status tsk_status) {
+  ASSERT(tsk_status == TASK_BLOCKED || tsk_status == TASK_WAITING ||
+         tsk_status == TASK_HANGING);
+  enum intr_status intr_save = intr_disable();
+  running_thread->status = tsk_status;
+  // 执行完此函数之后，就切换到其他线程，只有把此线程重新加入就绪队列，才再有机会调度。
+  /*
+   *  schedule 是从ready 队列取线程运行。
+   *  ready 队列中：
+   *         1. 从未执行的线程        ------  kthread_func_run 开启中断
+   *         2. 时间片结束等待调度的线程  ------ 中断返回时会自己恢复中断状态
+   *         3. 刚获得资源的线程  ------
+   * 因为资源而阻塞的线程，一定是卡在此函数中，此函数最后会恢复中断，
+   *
+   */
+  schedule();
+  intr_set_status(intr_save);
+}
+
+// 唤醒线程
+void thread_unblock(tcb *tsk) {
+  ASSERT(tsk->status == TASK_BLOCKED || tsk->status == TASK_WAITING ||
+         tsk->status == TASK_HANGING);
+  enum intr_status intr_save = intr_disable();
+  tsk->status = TASK_READY;
+  list_push_front(&thread_ready_list, &tsk->general_tag);
+  intr_set_status(intr_save);
 }

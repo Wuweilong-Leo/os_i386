@@ -63,5 +63,6 @@ typedef struct thread_control_block {
 tcb *thread_run(char *name, uint8_t prio, thread_func func, void *func_arg);
 void thread_all_init();
 tcb *running_thread_get();
-
+void thread_block(enum task_status tsk_status);
+void thread_unblock(tcb *tsk);
 #endif
