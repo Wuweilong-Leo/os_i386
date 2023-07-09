@@ -74,7 +74,7 @@ void put_char(uint8_t c) {
     uint32_t offset = (cur_pos - 1) * 2;
     video_base_addr[offset] = ' ';
     video_base_addr[offset + 1] = BLK_BACK_WHT_WORD;
-    next_cur_pos = cur_pos;
+    next_cur_pos = cur_pos - 1;
   } else {
     uint32_t offset = cur_pos * 2;
     video_base_addr[offset] = c;

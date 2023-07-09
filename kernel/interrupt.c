@@ -3,7 +3,7 @@
 #include "io.h"
 #include "print.h"
 #include "stdint.h"
-#define IDT_DESC_CNT 0X21
+#define IDT_DESC_CNT 0X30
 
 #ifndef NULL
 #define NULL (void *)0
@@ -70,6 +70,9 @@ static void pic_init() {
   outb(PIC_S_DATA, 0x02);
   outb(PIC_S_DATA, 0x01);
   outb(PIC_M_DATA, 0xfe);
+  outb(PIC_S_DATA, 0xff);
+  // 测试keyboard，屏蔽所有除键盘外所有中断。
+  outb(PIC_M_DATA, 0xfc);
   outb(PIC_S_DATA, 0xff);
   put_str("   pic_init done\n");
 }

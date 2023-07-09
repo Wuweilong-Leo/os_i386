@@ -17,4 +17,8 @@ struct lock {
   struct semaphore sem;
 };
 
+void lock_init(struct lock *lck);
+void lock_acquire(struct lock *lck);
+void lock_release(struct lock *lck);
+
 #endif
