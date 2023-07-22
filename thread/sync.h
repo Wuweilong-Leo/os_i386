@@ -4,7 +4,6 @@
 #include "interrupt.h"
 #include "list.h"
 #include "stdint.h"
-#include "thread.h"
 
 // 信号量
 struct semaphore {
@@ -13,7 +12,7 @@ struct semaphore {
 };
 
 struct lock {
-  tcb *holder;
+  void *holder; /* 本来是tcb类型的指针，但是防止头文件循环包含，选择void* */
   struct semaphore sem;
 };
 

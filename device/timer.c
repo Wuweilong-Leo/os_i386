@@ -15,7 +15,6 @@
 #define PIT_CONTROL_PORT 0x43
 
 uint32_t ticks = 0;
-extern tcb *running_thread;
 
 static void freq_set(uint8_t counter_port, uint8_t counter_no, uint8_t rwl,
                      uint8_t counter_mode, uint16_t counter_value) {

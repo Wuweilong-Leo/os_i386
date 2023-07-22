@@ -1,4 +1,5 @@
 #include "sync.h"
+#include "thread.h"
 
 extern tcb *running_thread;
 

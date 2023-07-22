@@ -6,24 +6,33 @@
 #include "stdint.h"
 #include "string.h"
 
-#ifndef PG_SIEE
-#define PG_SIZE 4096
-#endif
-
 tcb *main_thread;
 tcb *running_thread;
 struct list thread_ready_list;
 struct list thread_all_list;
 
+tcb *thread_table[MAX_THREAD_NUM] = {NULL};
+
 extern void switch_to(tcb *cur, tcb *next);
 
-static void kthread_func_run(thread_func func, void *func_arg) {
+static void kernel_thread_entry(thread_func func, void *func_arg) {
   intr_enable(); // 每个线程都要保证初始状态中断开启
 
   (*func)(func_arg);
 }
 
-static void thread_tcb_init(tcb *pthread, char *name, uint8_t prio) {
+// 先不考虑tid不够的情况
+static void thread_tid_alloc(tcb *thread) {
+  for (uint32_t i = 0; i < MAX_THREAD_NUM; i++) {
+    if (thread_table[i] == NULL) {
+      thread->tid = i;
+      thread_table[i] = thread;
+      return;
+    }
+  }
+}
+
+void thread_tcb_init(tcb *pthread, char *name, uint8_t prio) {
   memset(pthread, 0, sizeof(*pthread));
   strcpy(pthread->name, name);
   pthread->status = (pthread == main_thread) ? TASK_RUNNING : TASK_READY;
@@ -31,17 +40,19 @@ static void thread_tcb_init(tcb *pthread, char *name, uint8_t prio) {
   pthread->self_kstack = (uint32_t *)((uint32_t)pthread + PG_SIZE);
   pthread->ticks = prio; // 优先级和可执行的ticks相关
   pthread->pg_dir = NULL;
+  thread_tid_alloc(pthread);
   pthread->stack_magic = 0x19980820;
 }
 
-static void thread_stack_init(tcb *pthread, thread_func func, void *func_arg) {
+void thread_stack_init(tcb *pthread, thread_func func, void *func_arg) {
   uint32_t kstack_tmp = (uint32_t)(pthread->self_kstack);
-  // kstack_tmp -= sizeof(struct intr_stack);
+  /* 此处是预留出位置给用户进程 */
+  kstack_tmp -= sizeof(struct intr_stack);
   kstack_tmp -= sizeof(struct thread_stack);
   pthread->self_kstack = (uint32_t *)kstack_tmp;
   struct thread_stack *kthread_stack =
       (struct thread_stack *)pthread->self_kstack;
-  kthread_stack->eip = kthread_func_run;
+  kthread_stack->eip = kernel_thread_entry;
   kthread_stack->func = func;
   kthread_stack->func_arg = func_arg;
   kthread_stack->ebp = 0;
@@ -53,8 +64,8 @@ static void thread_stack_init(tcb *pthread, thread_func func, void *func_arg) {
   */
 }
 
-static void thread_init(tcb *pthread, char *name, uint8_t prio,
-                        thread_func func, void *func_arg) {
+void thread_init(tcb *pthread, char *name, uint8_t prio, thread_func func,
+                 void *func_arg) {
   thread_tcb_init(pthread, name, prio);
   thread_stack_init(pthread, func, func_arg);
 }
@@ -94,7 +105,7 @@ static void main_thread_make() {
 }
 
 void schedule() {
-  // 保证切换时中断关闭
+  /* 保证切换时中断关闭 */
   ASSERT(intr_get_status() == INTR_OFF);
   // 只是因为时间片到了
   if (running_thread->status == TASK_RUNNING) {
@@ -102,17 +113,18 @@ void schedule() {
     running_thread->ticks = running_thread->priority;
     running_thread->status = TASK_READY;
   } else {
-    // 资源抢不到而阻塞不应该再加入ready队列
+    /* 资源抢不到而阻塞不应该再加入ready队列 */
   }
 
-  // 必须保证ready队列有等待的线程
+  /* 必须保证ready队列有等待的线程 */
   ASSERT(!list_empty(&thread_ready_list));
   struct list_elem *thread_tag = list_pop_front(&thread_ready_list);
   tcb *next = ELEM2ENTRY(tcb, general_tag, thread_tag);
   next->status = TASK_RUNNING;
   tcb *cur = running_thread;
   running_thread = next;
-
+  /* 更新页目录表和更新tss0特权级的栈指针 */
+  process_activate(next);
   switch_to(cur, next);
 }
 

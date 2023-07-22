@@ -1,7 +1,15 @@
 #ifndef THREAD_H
 #define THREAD_H
 #include "list.h"
+#include "memory.h"
 #include "stdint.h"
+
+#define MAX_THREAD_NUM 128
+
+#ifndef PG_SIEE
+#define PG_SIZE 4096
+#endif
+
 typedef void (*thread_func)(void *);
 enum task_status {
   TASK_RUNNING,
@@ -49,6 +57,7 @@ struct thread_stack {
 // 线程控制块
 typedef struct thread_control_block {
   uint32_t *self_kstack;
+  uint32_t tid;
   enum task_status status;
   uint8_t priority;
   char name[16];
@@ -57,12 +66,23 @@ typedef struct thread_control_block {
   struct list_elem general_tag;
   struct list_elem all_list_tag;
   uint32_t *pg_dir;
+  struct pool user_vaddr_pool;
   uint32_t stack_magic;
 } tcb;
 
+extern tcb *running_thread;
+extern tcb *thread_table[MAX_THREAD_NUM];
+extern struct list thread_ready_list;
+extern struct list thread_all_list;
 tcb *thread_run(char *name, uint8_t prio, thread_func func, void *func_arg);
 void thread_all_init();
 tcb *running_thread_get();
 void thread_block(enum task_status tsk_status);
 void thread_unblock(tcb *tsk);
+void thread_tcb_init(tcb *pthread, char *name, uint8_t prio);
+void thread_stack_init(tcb *pthread, thread_func func, void *func_arg);
+void thread_init(tcb *pthread, char *name, uint8_t prio, thread_func func,
+                 void *func_arg);
+#define PID2TCB(pid) (thread_table[pid])
+
 #endif
