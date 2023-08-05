@@ -3,7 +3,7 @@
 #include "io.h"
 #include "print.h"
 #include "stdint.h"
-#define IDT_DESC_CNT 0X30
+#define IDT_DESC_CNT 0X81
 
 #ifndef NULL
 #define NULL (void *)0
@@ -16,6 +16,8 @@
 
 #define EFLAGS_IF ((uint32_t)0x200)
 #define GET_EFLAGS(eflags_var) asm volatile("pushf; popl %0" : "=g"(eflags_var))
+
+extern uint32_t syscall_entry();
 
 struct gate_desc {
   uint16_t func_offset_low_word;
@@ -32,11 +34,23 @@ static struct gate_desc idt[IDT_DESC_CNT] = {0};
 extern intr_handler intr_entry_table[IDT_DESC_CNT];
 
 // 中断名
-char *intr_name[] = {"#DE", "#DB", "#NMI", "#BP", "#OF",  "#BR", "#UD",
-                     "#NM", "#DF", "#CSO", "TS",  "NP",   "SS",  "GP",
-                     "PF",  NULL,  "MF",   "AC",  "MC",   "XF",  NULL,
-                     NULL,  NULL,  NULL,   NULL,  NULL,   NULL,  NULL,
-                     NULL,  NULL,  NULL,   NULL,  "TIMER"};
+char *intr_name[IDT_DESC_CNT] = {"#DE",   "#DB",
+                                 "#NMI",  "#BP",
+                                 "#OF",   "#BR",
+                                 "#UD",   "#NM",
+                                 "#DF",   "#CSO",
+                                 "TS",    "NP",
+                                 "SS",    "GP",
+                                 "PF",    NULL,
+                                 "MF",    "AC",
+                                 "MC",    "XF",
+                                 NULL,    NULL,
+                                 NULL,    NULL,
+                                 NULL,    NULL,
+                                 NULL,    NULL,
+                                 NULL,    NULL,
+                                 NULL,    NULL,
+                                 "TIMER", [0x80] = "SYSCALL"};
 
 // 存放真正的中断处理函数，中断入口会跳转到此处
 intr_handler idt_table[IDT_DESC_CNT] = {0};
@@ -57,6 +71,7 @@ static void idt_desc_init() {
   for (uint32_t i = 0; i < IDT_DESC_CNT; i++) {
     idt_desc_make(&idt[i], IDT_DESC_ATTR_DPL0, intr_entry_table[i]);
   }
+  idt_desc_make(&idt[INT_SYSCALL], IDT_DESC_ATTR_DPL3, syscall_entry);
   put_str("   idt_desc_init done\n");
 }
 

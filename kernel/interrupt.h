@@ -34,6 +34,7 @@ enum intr_num {
   EXP_SIMD_FLOATING_POINT_EXCEPTION,
   INT_TIMER = 0x20,
   INT_KEYBOARD = 0x21,
+  INT_SYSCALL = 0x80,
 };
 
 #endif

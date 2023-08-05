@@ -5,11 +5,18 @@
 #include "memory.h"
 #include "stdint.h"
 #include "string.h"
-
+#include "sync.h"
+/*
+ * 调度时机:
+ *        1. 时间片中断
+ *        2. 获取不到锁
+ *
+ */
 tcb *main_thread;
 tcb *running_thread;
 struct list thread_ready_list;
 struct list thread_all_list;
+struct lock pid_lock;
 
 tcb *thread_table[MAX_THREAD_NUM] = {NULL};
 
@@ -21,15 +28,17 @@ static void kernel_thread_entry(thread_func func, void *func_arg) {
   (*func)(func_arg);
 }
 
-// 先不考虑tid不够的情况
-static void thread_tid_alloc(tcb *thread) {
+// 先不考虑pid不够的情况
+static void pid_alloc(tcb *thread) {
+  lock_acquire(&pid_lock);
   for (uint32_t i = 0; i < MAX_THREAD_NUM; i++) {
     if (thread_table[i] == NULL) {
-      thread->tid = i;
+      thread->pid = i;
       thread_table[i] = thread;
-      return;
+      break;
     }
   }
+  lock_release(&pid_lock);
 }
 
 void thread_tcb_init(tcb *pthread, char *name, uint8_t prio) {
@@ -40,7 +49,7 @@ void thread_tcb_init(tcb *pthread, char *name, uint8_t prio) {
   pthread->self_kstack = (uint32_t *)((uint32_t)pthread + PG_SIZE);
   pthread->ticks = prio; // 优先级和可执行的ticks相关
   pthread->pg_dir = NULL;
-  thread_tid_alloc(pthread);
+  pid_alloc(pthread);
   pthread->stack_magic = 0x19980820;
 }
 
@@ -132,6 +141,7 @@ void thread_all_init() {
   put_str("thread_all_init begin\n");
   list_init(&thread_ready_list);
   list_init(&thread_all_list);
+  lock_init(&pid_lock);
   main_thread_make();
   put_str("thread_all_init done\n");
 }

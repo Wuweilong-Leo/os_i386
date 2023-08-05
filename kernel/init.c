@@ -4,6 +4,7 @@
 #include "keyboard.h"
 #include "memory.h"
 #include "print.h"
+#include "syscall_init.h"
 #include "thread.h"
 #include "timer.h"
 #include "tss.h"
@@ -17,4 +18,5 @@ void init_all() {
   console_init();
   keyboard_init();
   tss_init();
+  syscall_init();
 }

@@ -7,6 +7,7 @@
 #include "memory.h"
 #include "print.h"
 #include "process.h"
+#include "syscall.h"
 #include "thread.h"
 
 uint32_t var1 = 0;
@@ -25,33 +26,31 @@ int main() {
   process_run(process1, "process1");
   process_run(process2, "process2");
   intr_enable();
-
+  console_put_int(pid_get());
   while (1)
     ;
 }
 
 void thread1(void *arg) {
+  console_put_int(pid_get());
   while (1) {
-    console_put_str(" thread1:");
-    console_put_int(var1);
   }
 }
 
 void thread2(void *arg) {
+  console_put_int(pid_get());
   while (1) {
-    console_put_str(" thread2:");
-    console_put_int(var2);
   }
 }
 
 void process1() {
+  put_int(pid_get());
   while (1) {
-    var1++;
   }
 }
 
 void process2() {
+  put_int(pid_get());
   while (1) {
-    var2++;
   }
 }

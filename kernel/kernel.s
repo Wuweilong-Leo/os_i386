@@ -97,3 +97,33 @@ VECTOR 0x2d, ZERO
 VECTOR 0x2e, ZERO
 VECTOR 0x2f, ZERO
 
+[bits 32]
+extern syscall_table
+
+section .text
+
+global syscall_entry
+
+syscall_entry:
+    push 0
+    push ds
+    push es
+    push fs
+    push gs
+    pushad
+    push 0x80
+; 压入系统调用参数
+    push edx
+    push ecx
+    push ebx
+
+    call [syscall_table + eax * 4]
+; 跳过参数
+    add esp, 12
+; 把系统调用返回值传入栈中，中断返回时又会返回到eax里
+    mov [esp + 8 * 4], eax
+    jmp intr_exit
+
+
+
+

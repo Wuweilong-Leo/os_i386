@@ -3,7 +3,7 @@ ENTRY_POINT = 0xc0001500
 AS = nasm
 CC = gcc
 LD = ld
-LIB = -I lib/ -I lib/kernel/ -I lib/user/ -I kernel/ -I device/ -I thread/ -I user/
+LIB = -I lib/ -I lib/kernel/ -I lib/user/ -I kernel/ -I device/ -I thread/ -I user/ -I lib/user
 ASFLAGS = -f elf
 
 CFLAGS = -m32 -Wall $(LIB) -c -fno-builtin -std=c99 
@@ -16,13 +16,13 @@ OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/init.o $(BUILD_DIR)/interrupt.o \
 	$(BUILD_DIR)/string.o $(BUILD_DIR)/thread.o $(BUILD_DIR)/list.o \
 	$(BUILD_DIR)/switch.o $(BUILD_DIR)/sync.o $(BUILD_DIR)/console.o\
 	$(BUILD_DIR)/keyboard.o $(BUILD_DIR)/ioqueue.o $(BUILD_DIR)/tss.o\
-	$(BUILD_DIR)/process.o
+	$(BUILD_DIR)/process.o $(BUILD_DIR)/syscall.o $(BUILD_DIR)/syscall_init.o
 
 # C文件编译
-$(BUILD_DIR)/main.o: kernel/main.c lib/kernel/print.h lib/stdint.h kernel/init.h kernel/debug.h thread/thread.h thread/sync.h device/console.h device/ioqueue.h device/keyboard.h user/process.h 
+$(BUILD_DIR)/main.o: kernel/main.c lib/kernel/print.h lib/stdint.h kernel/init.h kernel/debug.h thread/thread.h thread/sync.h device/console.h device/ioqueue.h device/keyboard.h user/process.h lib/user/syscall.h 
 	$(CC) $(CFLAGS) $< -o $@
 
-$(BUILD_DIR)/init.o: kernel/init.c kernel/init.h  lib/kernel/print.h kernel/memory.h thread/thread.h device/console.h device/keyboard.h user/tss.h
+$(BUILD_DIR)/init.o: kernel/init.c kernel/init.h  lib/kernel/print.h kernel/memory.h thread/thread.h device/console.h device/keyboard.h user/tss.h user/syscall_init.h
 	$(CC) $(CFLAGS) $< -o $@
 
 $(BUILD_DIR)/interrupt.o: kernel/interrupt.c kernel/interrupt.h lib/stdint.h kernel/global.h lib/kernel/io.h lib/kernel/print.h
@@ -46,7 +46,7 @@ $(BUILD_DIR)/bitmap.o: lib/kernel/bitmap.c lib/kernel/bitmap.h lib/string.h lib/
 $(BUILD_DIR)/string.o: lib/string.c lib/string.h lib/stdint.h 
 	$(CC) $(CFLAGS) $< -o $@
 
-$(BUILD_DIR)/thread.o: thread/thread.c thread/thread.h lib/stdint.h kernel/global.h kernel/memory.h lib/string.h kernel/debug.h
+$(BUILD_DIR)/thread.o: thread/thread.c thread/thread.h lib/stdint.h kernel/global.h kernel/memory.h lib/string.h kernel/debug.h thread/sync.h
 	$(CC) $(CFLAGS) $< -o $@
 
 $(BUILD_DIR)/list.o: lib/kernel/list.c kernel/interrupt.h
@@ -69,7 +69,13 @@ $(BUILD_DIR)/tss.o : user/tss.c kernel/global.h lib/kernel/print.h lib/string.h 
 
 $(BUILD_DIR)/process.o : user/process.c user/process.h kernel/memory.h lib/kernel/bitmap.h device/console.h kernel/global.h  thread/thread.h user/tss.h
 	$(CC) $(CFLAGS) $< -o $@
-	
+
+$(BUILD_DIR)/syscall.o : lib/user/syscall.c lib/user/syscall.h lib/stdint.h
+	$(CC) $(CFLAGS) $< -o $@
+
+$(BUILD_DIR)/syscall_init.o : user/syscall_init.c lib/user/syscall.h thread/thread.h lib/kernel/print.h
+	$(CC) $(CFLAGS) $< -o $@
+
 # 汇编文件编译
 $(BUILD_DIR)/kernel.o: kernel/kernel.s
 	$(AS) $(ASFLAGS) $< -o $@

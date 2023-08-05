@@ -54,10 +54,12 @@ struct thread_stack {
   void *func_arg;
 };
 
+typedef uint16_t pid_t;
+
 // 线程控制块
 typedef struct thread_control_block {
   uint32_t *self_kstack;
-  uint32_t tid;
+  pid_t pid;
   enum task_status status;
   uint8_t priority;
   char name[16];
