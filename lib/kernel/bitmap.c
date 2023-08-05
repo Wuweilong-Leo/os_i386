@@ -4,49 +4,44 @@
 #include "print.h"
 #include "stdint.h"
 #include "string.h"
-static inline uint32_t bit_num2bytes_len(uint32_t bit_num) {
-  return (bit_num % 8 == 0) ? (bit_num / 8) : (bit_num / 8 + 1);
-}
+
 void bitmap_init(struct bitmap *btmp, uint32_t base, uint32_t bit_num) {
-  btmp->bits = (uint8_t *)base;
+  btmp->base_addr = (uint8_t *)base;
   btmp->bit_num = bit_num;
-  btmp->btmp_bytes_len = bit_num2bytes_len(bit_num);
-  memset(btmp->bits, 0, btmp->btmp_bytes_len);
+  btmp->byte_len = bit_num_2_byte_len(bit_num);
+  memset(btmp->base_addr, 0, btmp->byte_len);
 }
 
-bool bitmap_scan_test(struct bitmap *btmp, uint32_t bit_idx) {
+uint32_t bitmap_get(struct bitmap *btmp, uint32_t bit_idx) {
   uint32_t byte_off = bit_idx / 8;
   uint32_t bit_off = bit_idx % 8;
-  uint8_t *base = btmp->bits;
-  return base[byte_off] & (BITMAP_MASK << bit_off);
+  return (btmp->base_addr[byte_off] & (BITMAP_MASK << bit_off)) != 0;
 }
 
-// 连续申请cnt个位，返回开始索引
+/* 连续申请cnt空闲位 */
 int32_t bitmap_scan(struct bitmap *btmp, uint32_t cnt) {
-  uint32_t cur_idx = 0;
-  while (cur_idx < btmp->bit_num) {
-    uint32_t cnt_tmp = 0;
-    while (bitmap_scan_test(btmp, cur_idx)) {
-      cur_idx++;
+  uint32_t left = 0;
+  uint32_t right = 0;
+  while (right < btmp->bit_num) {
+    if (bitmap_get(btmp, right) != 0) {
+      left = right + 1;
     }
-    while (cur_idx < btmp->bit_num && !bitmap_scan_test(btmp, cur_idx)) {
-      cnt_tmp++;
-      if (cnt_tmp == cnt) {
-        return cur_idx - cnt + 1;
-      }
-      cur_idx++;
+    if (right - left + 1 == cnt) {
+      return left;
     }
+    right++;
   }
   return -1;
 }
 
-void bitmap_set(struct bitmap *btmp, uint32_t idx, bool val) {
+void bitmap_set(struct bitmap *btmp, uint32_t idx) {
   uint32_t byte_off = idx / 8;
   uint32_t bit_off = idx % 8;
-  uint8_t *base = btmp->bits;
-  if (val == 1) {
-    base[byte_off] |= BITMAP_MASK << bit_off;
-  } else {
-    base[byte_off] &= ~(BITMAP_MASK << bit_off);
-  }
+  btmp->base_addr[byte_off] |= (1 << bit_off);
+}
+
+void bitmap_clear(struct bitmap *btmp, uint32_t idx) {
+  uint32_t byte_off = idx / 8;
+  uint32_t bit_off = idx % 8;
+  btmp->base_addr[byte_off] &= ~(1 << bit_off);
 }

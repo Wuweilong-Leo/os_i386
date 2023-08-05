@@ -51,12 +51,12 @@ static void mem_pool_init(uint32_t all_mem) {
   lock_init(&user_phy_pool.lck);
 
   put_str(" kernel_pool_bitmap_start: ");
-  put_int((int)kernel_phy_pool.btmp.bits);
+  put_int((int)kernel_phy_pool.btmp.base_addr);
   put_str(" kernel_pool_phy_addr_start: ");
   put_int((int)kernel_phy_pool.addr_base);
   put_str("\n");
   put_str(" user_pool_bitmap_start: ");
-  put_int((int)user_phy_pool.btmp.bits);
+  put_int((int)user_phy_pool.btmp.base_addr);
   put_str(" user_pool_phy_addr_start: ");
   put_int((int)user_phy_pool.addr_base);
   put_str("\n");
@@ -88,7 +88,7 @@ static void *vaddr_get(enum pool_flags pf, uint32_t pg_cnt) {
       return NULL;
     }
     while (cnt < pg_cnt) {
-      bitmap_set(&kernel_vir_pool.btmp, bit_idx_start + cnt++, 1);
+      bitmap_set(&kernel_vir_pool.btmp, bit_idx_start + cnt++);
     }
     vaddr_start = kernel_vir_pool.addr_base + bit_idx_start * PG_SIZE;
   } else {
@@ -98,8 +98,7 @@ static void *vaddr_get(enum pool_flags pf, uint32_t pg_cnt) {
       return NULL;
     }
     while (cnt < pg_cnt) {
-      bitmap_set(&running_thread->user_vaddr_pool.btmp, bit_idx_start + cnt++,
-                 1);
+      bitmap_set(&running_thread->user_vaddr_pool.btmp, bit_idx_start + cnt++);
     }
     vaddr_start =
         running_thread->user_vaddr_pool.addr_base + bit_idx_start * PG_SIZE;
@@ -126,7 +125,7 @@ static void *paddr_get(struct pool *mem_pool) {
   if (bit_idx == -1) {
     return NULL;
   }
-  bitmap_set(&mem_pool->btmp, bit_idx, 1);
+  bitmap_set(&mem_pool->btmp, bit_idx);
   uint32_t page_phyaddr = ((bit_idx * PG_SIZE) + mem_pool->addr_base);
   return (void *)page_phyaddr;
 }
@@ -208,10 +207,10 @@ void *target_vaddr_malloc(enum pool_flags pf, uint32_t vaddr) {
   /* 内核线程的tcb中页目录地址肯定为NULL */
   if (running_thread->pg_dir != NULL && pf == PF_USER) {
     bit_idx = (vaddr - running_thread->user_vaddr_pool.addr_base) / PG_SIZE;
-    bitmap_set(&running_thread->user_vaddr_pool.btmp, bit_idx, 1);
+    bitmap_set(&running_thread->user_vaddr_pool.btmp, bit_idx);
   } else if (running_thread->pg_dir == NULL && pf == PF_KERNEL) {
     bit_idx = (vaddr - kernel_vir_pool.addr_base) / PG_SIZE;
-    bitmap_set(&kernel_vir_pool.btmp, bit_idx, 1);
+    bitmap_set(&kernel_vir_pool.btmp, bit_idx);
   } else {
     PANIC("alloc type error!");
   }
