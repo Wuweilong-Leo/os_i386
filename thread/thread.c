@@ -20,8 +20,6 @@ struct lock pid_lock;
 
 tcb *thread_table[MAX_THREAD_NUM] = {NULL};
 
-extern void switch_to(tcb *cur, tcb *next);
-
 static void kernel_thread_entry(thread_func func, void *func_arg) {
   intr_enable(); // 每个线程都要保证初始状态中断开启
 
@@ -113,30 +111,6 @@ static void main_thread_make() {
   list_push_back(&thread_all_list, &main_thread->all_list_tag);
 }
 
-void schedule() {
-  /* 保证切换时中断关闭 */
-  ASSERT(intr_get_status() == INTR_OFF);
-  // 只是因为时间片到了
-  if (running_thread->status == TASK_RUNNING) {
-    list_push_back(&thread_ready_list, &running_thread->general_tag);
-    running_thread->ticks = running_thread->priority;
-    running_thread->status = TASK_READY;
-  } else {
-    /* 资源抢不到而阻塞不应该再加入ready队列 */
-  }
-
-  /* 必须保证ready队列有等待的线程 */
-  ASSERT(!list_empty(&thread_ready_list));
-  struct list_elem *thread_tag = list_pop_front(&thread_ready_list);
-  tcb *next = ELEM2ENTRY(tcb, general_tag, thread_tag);
-  next->status = TASK_RUNNING;
-  tcb *cur = running_thread;
-  running_thread = next;
-  /* 更新页目录表和更新tss0特权级的栈指针 */
-  process_activate(next);
-  switch_to(cur, next);
-}
-
 void thread_all_init() {
   put_str("thread_all_init begin\n");
   list_init(&thread_ready_list);
@@ -174,4 +148,35 @@ void thread_unblock(tcb *tsk) {
   tsk->status = TASK_READY;
   list_push_front(&thread_ready_list, &tsk->general_tag);
   intr_set_status(intr_save);
+}
+
+extern void task_trap(tcb *);
+extern void context_load(tcb *);
+
+void schedule() {
+  task_trap(running_thread);
+  return;
+}
+
+void main_schedule() {
+  /* 保证切换时中断关闭 */
+  ASSERT(intr_get_status() == INTR_OFF);
+  // 只是因为时间片到了
+  if (running_thread->status == TASK_RUNNING) {
+    list_push_back(&thread_ready_list, &running_thread->general_tag);
+    running_thread->ticks = running_thread->priority;
+    running_thread->status = TASK_READY;
+  } else {
+    /* 资源抢不到而阻塞不应该再加入ready队列 */
+  }
+
+  /* 必须保证ready队列有等待的线程 */
+  ASSERT(!list_empty(&thread_ready_list));
+  struct list_elem *thread_tag = list_pop_front(&thread_ready_list);
+  tcb *next = ELEM2ENTRY(tcb, general_tag, thread_tag);
+  next->status = TASK_RUNNING;
+  running_thread = next;
+  /* 更新页目录表和更新tss0特权级的栈指针 */
+  process_activate(next);
+  context_load(next);
 }

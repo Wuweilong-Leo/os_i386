@@ -3,11 +3,15 @@
 ; 其实就是这几个寄存器。
 
 [bits 32]
+
 section .text
-global switch_to
-switch_to:
-    
-    
+
+extern main_schedule
+
+global task_trap
+
+task_trap:
+
     ;前后线程的esi,edi,ebx,ebp 不同，因此要保证先存起来，再出栈。
     push esi
     push edi
@@ -17,7 +21,12 @@ switch_to:
     mov eax, [esp + 20] ;eax 里存放 当前线程tcb首地址
     mov [eax], esp ; 把当前esp地址存入tcb中
 
-    mov eax, [esp + 24];eax 里存放 将执行线程tcb首地址
+    call main_schedule
+
+global context_load
+
+context_load:
+    mov eax, [esp + 4];eax 里存放 将执行线程tcb首地址
     mov esp, [eax] ; 把下一个线程的栈地址写入esp,完成栈的切换
 
     pop ebp
@@ -26,5 +35,3 @@ switch_to:
     pop esi
 
     ret
-
-
