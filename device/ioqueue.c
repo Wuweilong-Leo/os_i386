@@ -3,8 +3,6 @@
 #include "global.h"
 #include "interrupt.h"
 
-extern tcb *running_thread;
-
 void ioqueue_init(struct ioqueue *q) {
   lock_init(&q->lck);
   q->producer = NULL;
@@ -22,7 +20,7 @@ bool ioq_full(struct ioqueue *q) { return next_pos_get(q->head) == q->tail; }
 bool ioq_empty(struct ioqueue *q) { return q->head == q->tail; }
 
 static void ioq_wait(tcb **waiter) {
-  *waiter = running_thread;
+  *waiter = cur_scheduler->running_thread;
   thread_block(TASK_BLOCKED);
 }
 

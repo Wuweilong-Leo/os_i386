@@ -23,23 +23,26 @@ int main() {
   init_all();
   thread_run("kthread1", 31, thread1, "arg1_");
   thread_run("kthread2", 31, thread2, "arg2_");
-  process_run(process1, "process1");
-  process_run(process2, "process2");
+  // process_run(process1, "process1");
+  // process_run(process2, "process2");
   intr_enable();
   console_put_int(pid_get());
-  while (1)
-    ;
+  while (1) {
+    console_put_str("main ");
+  }
 }
 
 void thread1(void *arg) {
   console_put_int(pid_get());
   while (1) {
+    console_put_str("thread1 ");
   }
 }
 
 void thread2(void *arg) {
   console_put_int(pid_get());
   while (1) {
+    console_put_str("thread2 ");
   }
 }
 

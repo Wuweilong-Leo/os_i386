@@ -6,7 +6,7 @@
 typedef void *syscall;
 syscall syscall_table[SYSCALL_NUM];
 
-uint32_t sys_pid_get() { return running_thread->pid; }
+uint32_t sys_pid_get() { return cur_scheduler->running_thread->pid; }
 
 void syscall_init() {
   put_str("syscall_init start\n");

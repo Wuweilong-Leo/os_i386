@@ -13,6 +13,7 @@ extern void intr_exit();
  * 作为参数
  */
 void process_entry(void *filename) {
+  tcb *running_thread = cur_scheduler->running_thread;
   void *func = filename;
   uint32_t stack = (uint32_t)running_thread->self_kstack;
   stack += sizeof(struct thread_stack);
@@ -95,7 +96,7 @@ void process_run(void *filename, char *name) {
   task->pg_dir = page_dir_create();
 
   enum intr_status int_save = intr_disable();
-  list_push_back(&thread_ready_list, &task->general_tag);
-  list_push_back(&thread_all_list, &task->all_list_tag);
+  scheduler_rq_join(task);
+  list_push_back(&cur_scheduler->all_list, &task->all_list_tag);
   intr_set_status(int_save);
 }

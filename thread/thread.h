@@ -1,10 +1,13 @@
 #ifndef THREAD_H
 #define THREAD_H
+#include "bitmap.h"
 #include "list.h"
 #include "memory.h"
 #include "stdint.h"
+#include "sync.h"
 
 #define MAX_THREAD_NUM 128
+#define PRIO_NUM 32
 
 #ifndef PG_SIEE
 #define PG_SIZE 4096
@@ -72,10 +75,20 @@ typedef struct thread_control_block {
   uint32_t stack_magic;
 } tcb;
 
-extern tcb *running_thread;
-extern tcb *thread_table[MAX_THREAD_NUM];
-extern struct list thread_ready_list;
-extern struct list thread_all_list;
+struct scheduler {
+  tcb *running_thread;
+  tcb *main_thread;
+  tcb *thread_table[MAX_THREAD_NUM];
+  struct bitmap rq_mask;
+  /* ready queue */
+  struct list rq[PRIO_NUM];
+  struct list all_list;
+  struct lock pid_lock;
+} scheduler;
+
+extern struct scheduler *cur_scheduler;
+void scheduler_rq_join(tcb *thread);
+void scheduler_rq_jump(tcb *thread);
 tcb *thread_run(char *name, uint8_t prio, thread_func func, void *func_arg);
 void thread_all_init();
 tcb *running_thread_get();
