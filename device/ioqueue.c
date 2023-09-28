@@ -20,7 +20,7 @@ bool ioq_full(struct ioqueue *q) { return next_pos_get(q->head) == q->tail; }
 bool ioq_empty(struct ioqueue *q) { return q->head == q->tail; }
 
 static void ioq_wait(tcb **waiter) {
-  *waiter = cur_scheduler->running_thread;
+  *waiter = RUNNING_THREAD;
   thread_block(TASK_BLOCKED);
 }
 

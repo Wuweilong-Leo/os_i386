@@ -14,19 +14,19 @@
  *
  */
 
-/* 优先级反馈调度 */
+/* 优先级反馈调度器 */
 struct scheduler scheduler;
 
 struct scheduler *cur_scheduler = &scheduler;
 
 void scheduler_init() {
-  cur_scheduler->running_thread = NULL;
+  RUNNING_THREAD = NULL;
   cur_scheduler->main_thread = NULL;
   memset(cur_scheduler->thread_table, 0, sizeof(tcb *) * MAX_THREAD_NUM);
   uint8_t *btmp_base = (uint8_t *)kernel_pages_malloc(1);
-  bitmap_init(&cur_scheduler->rq_mask, btmp_base, PRIO_NUM);
+  bitmap_init(RQ_MASK_BITMAP, btmp_base, PRIO_NUM);
   for (uint32_t i = 0; i < PRIO_NUM; i++) {
-    list_init(&cur_scheduler->rq[i]);
+    list_init(THIS_RQ(i));
   }
   list_init(&cur_scheduler->all_list);
   lock_init(&cur_scheduler->pid_lock);
@@ -35,15 +35,15 @@ void scheduler_init() {
 /* 排队 */
 void scheduler_rq_join(tcb *thread) {
   uint32_t prio = thread->priority;
-  list_push_back(&cur_scheduler->rq[prio], &thread->general_tag);
-  bitmap_set(&cur_scheduler->rq_mask, prio);
+  list_push_back(THIS_RQ(prio), &thread->general_tag);
+  bitmap_set(RQ_MASK_BITMAP, prio);
 }
 
 /* 插队 */
 void scheduler_rq_jump(tcb *thread) {
   uint32_t prio = thread->priority;
-  list_push_front(&cur_scheduler->rq[prio], &thread->general_tag);
-  bitmap_set(&cur_scheduler->rq_mask, prio);
+  list_push_front(THIS_RQ(prio), &thread->general_tag);
+  bitmap_set(RQ_MASK_BITMAP, prio);
 }
 
 static void kernel_thread_entry(thread_func func, void *func_arg) {
@@ -71,21 +71,21 @@ void thread_tcb_init(tcb *pthread, char *name, uint8_t prio) {
   pthread->status =
       (pthread == cur_scheduler->main_thread) ? TASK_RUNNING : TASK_READY;
   pthread->priority = prio;
-  pthread->self_kstack = (uint32_t *)((uint32_t)pthread + PG_SIZE);
-  pthread->ticks = prio; // 优先级和可执行的ticks相关
+  pthread->stack_top = (uint32_t *)((uint32_t)pthread + PG_SIZE);
+  pthread->ticks = ticks_get(prio); // 优先级和可执行的ticks相关
   pthread->pg_dir = NULL;
   pid_alloc(pthread);
   pthread->stack_magic = 0x19980820;
 }
 
 void thread_stack_init(tcb *pthread, thread_func func, void *func_arg) {
-  uint32_t kstack_tmp = (uint32_t)(pthread->self_kstack);
+  uint32_t kstack_tmp = (uint32_t)(pthread->stack_top);
   /* 此处是预留出位置给用户进程 */
   kstack_tmp -= sizeof(struct intr_stack);
   kstack_tmp -= sizeof(struct thread_stack);
-  pthread->self_kstack = (uint32_t *)kstack_tmp;
+  pthread->stack_top = (uint32_t *)kstack_tmp;
   struct thread_stack *kthread_stack =
-      (struct thread_stack *)pthread->self_kstack;
+      (struct thread_stack *)pthread->stack_top;
   kthread_stack->eip = kernel_thread_entry;
   kthread_stack->func = func;
   kthread_stack->func_arg = func_arg;
@@ -129,11 +129,10 @@ tcb *running_thread_get() {
 }
 
 static void main_thread_make() {
-  cur_scheduler->running_thread = running_thread_get();
-  cur_scheduler->main_thread = cur_scheduler->running_thread;
+  RUNNING_THREAD = running_thread_get();
+  cur_scheduler->main_thread = RUNNING_THREAD;
   thread_tcb_init(cur_scheduler->main_thread, "main", 31);
-  list_push_back(&cur_scheduler->all_list,
-                 &cur_scheduler->running_thread->all_list_tag);
+  list_push_back(&cur_scheduler->all_list, &RUNNING_THREAD->all_list_tag);
 }
 
 void thread_all_init() {
@@ -148,7 +147,7 @@ void thread_block(enum task_status tsk_status) {
   ASSERT(tsk_status == TASK_BLOCKED || tsk_status == TASK_WAITING ||
          tsk_status == TASK_HANGING);
   enum intr_status intr_save = intr_disable();
-  cur_scheduler->running_thread->status = tsk_status;
+  RUNNING_THREAD->status = tsk_status;
   // 执行完此函数之后，就切换到其他线程，只有把此线程重新加入就绪队列，才再有机会调度。
   /*
    *  schedule 是从ready 队列取线程运行。
@@ -177,46 +176,49 @@ extern void task_trap(tcb *);
 extern void context_load(tcb *);
 
 void schedule() {
-  task_trap(cur_scheduler->running_thread);
+  task_trap(RUNNING_THREAD);
   return;
 }
 
-void task_prio_down(tcb *task) {
+static inline void task_prio_down(tcb *task) {
   task->priority = (task->priority + 1) % PRIO_NUM;
 }
 
-uint32_t highest_rq_get() {
+static inline uint32_t highest_rq_get() {
   uint32_t prio = 0;
-  struct bitmap *rq_mask = &cur_scheduler->rq_mask;
-  while (bitmap_get(rq_mask, prio) == 0) {
+  while (bitmap_get(RQ_MASK_BITMAP, prio) == 0) {
     prio++;
   }
   return prio;
 }
 
+static inline tcb *next_thread_pick() {
+  uint32_t prio = highest_rq_get();
+  struct list_elem *next_tag = list_pop_front(THIS_RQ(prio));
+  if (list_empty(THIS_RQ(prio))) {
+    bitmap_clear(RQ_MASK_BITMAP, prio);
+  }
+  return ELEM2ENTRY(tcb, general_tag, next_tag);
+}
+
 void main_schedule() {
-  tcb *cur_task = cur_scheduler->running_thread;
+  tcb *cur = RUNNING_THREAD;
   /* 保证切换时中断关闭 */
   ASSERT(intr_get_status() == INTR_OFF);
   // 只是因为时间片到了
-  if (cur_task->status == TASK_RUNNING) {
-    task_prio_down(cur_task);
-    scheduler_rq_join(cur_task);
-    cur_task->ticks = cur_task->priority;
-    cur_task->status = TASK_READY;
+  if (cur->status == TASK_RUNNING) {
+    task_prio_down(cur);
+    scheduler_rq_join(cur);
+    cur->ticks = ticks_get(cur->priority);
+    cur->status = TASK_READY;
   } else {
     /* 资源抢不到而阻塞不应该再加入ready队列 */
   }
 
   /* 必须保证ready队列有等待的线程 */
-  uint32_t prio = highest_rq_get();
-  struct list_elem *tsk_tag = list_pop_front(&cur_scheduler->rq[prio]);
-  if (list_empty(&cur_scheduler->rq[prio])) {
-    bitmap_clear(&cur_scheduler->rq_mask, prio);
-  }
-  tcb *next = ELEM2ENTRY(tcb, general_tag, tsk_tag);
+  tcb *next = next_thread_pick();
   next->status = TASK_RUNNING;
-  cur_scheduler->running_thread = next;
+  RUNNING_THREAD = next;
   /* 更新页目录表和更新tss0特权级的栈指针 */
   process_activate(next);
   context_load(next);

@@ -79,7 +79,7 @@ void mem_init() {
 
 /* 获取可用的虚拟地址页 */
 static void *vaddr_get(enum pool_flags pf, uint32_t pg_cnt) {
-  tcb *running_thread = cur_scheduler->running_thread;
+  tcb *running_thread = RUNNING_THREAD;
   uint32_t vaddr_start = 0;
   int32_t bit_idx_start = -1;
   uint32_t cnt = 0;
@@ -202,7 +202,7 @@ void *user_pages_malloc(uint32_t pg_cnt) {
 
 /* 分配指定的一页内存，即指定一页虚拟地址分配, vaddr 需要是4K的倍数 */
 void *target_vaddr_malloc(enum pool_flags pf, uint32_t vaddr) {
-  tcb *running_thread = cur_scheduler->running_thread;
+  tcb *running_thread = RUNNING_THREAD;
   struct pool *mem_pool = pf == PF_KERNEL ? &kernel_phy_pool : &user_phy_pool;
   lock_acquire(&mem_pool->lck);
   int32_t bit_idx = -1;

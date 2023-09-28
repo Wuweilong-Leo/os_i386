@@ -13,13 +13,13 @@ extern void intr_exit();
  * 作为参数
  */
 void process_entry(void *filename) {
-  tcb *running_thread = cur_scheduler->running_thread;
+  tcb *running_thread = RUNNING_THREAD;
   void *func = filename;
-  uint32_t stack = (uint32_t)running_thread->self_kstack;
+  uint32_t stack = (uint32_t)running_thread->stack_top;
   stack += sizeof(struct thread_stack);
-  running_thread->self_kstack = (uint32_t *)stack;
+  running_thread->stack_top = (uint32_t *)stack;
   struct intr_stack *proc_stack =
-      (struct intr_stack *)running_thread->self_kstack;
+      (struct intr_stack *)running_thread->stack_top;
   proc_stack->edi = 0;
   proc_stack->esi = 0;
   proc_stack->ebp = 0;

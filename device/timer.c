@@ -25,12 +25,10 @@ static void freq_set(uint8_t counter_port, uint8_t counter_no, uint8_t rwl,
 }
 
 void intr_timer_handler() {
-  ASSERT(cur_scheduler->running_thread->stack_magic == 0x19980820);
-  cur_scheduler->running_thread->elapsed_ticks++;
+  ASSERT(RUNNING_THREAD->stack_magic == 0x19980820);
+  RUNNING_THREAD->elapsed_ticks++;
   ticks++;
-  cur_scheduler->running_thread->ticks == 0
-      ? schedule()
-      : cur_scheduler->running_thread->ticks--;
+  RUNNING_THREAD->ticks == 0 ? schedule() : RUNNING_THREAD->ticks--;
 }
 
 void timer_init() {

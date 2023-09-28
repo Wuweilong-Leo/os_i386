@@ -13,7 +13,15 @@
 #define PG_SIZE 4096
 #endif
 
+#define PID2TCB(pid) (thread_table[pid])
+
+#define RUNNING_THREAD (cur_scheduler->running_thread)
+#define THIS_RQ(prio) (&cur_scheduler->rq[prio])
+#define RQ_MASK_BITMAP (&cur_scheduler->rq_mask)
+
 typedef void (*thread_func)(void *);
+typedef uint16_t pid_t;
+
 enum task_status {
   TASK_RUNNING,
   TASK_READY,
@@ -57,16 +65,14 @@ struct thread_stack {
   void *func_arg;
 };
 
-typedef uint16_t pid_t;
-
 // 线程控制块
 typedef struct thread_control_block {
-  uint32_t *self_kstack;
+  uint32_t *stack_top;
   pid_t pid;
   enum task_status status;
   uint8_t priority;
   char name[16];
-  uint8_t ticks;
+  uint32_t ticks;
   uint32_t elapsed_ticks;
   struct list_elem general_tag;
   struct list_elem all_list_tag;
@@ -98,6 +104,7 @@ void thread_tcb_init(tcb *pthread, char *name, uint8_t prio);
 void thread_stack_init(tcb *pthread, thread_func func, void *func_arg);
 void thread_init(tcb *pthread, char *name, uint8_t prio, thread_func func,
                  void *func_arg);
-#define PID2TCB(pid) (thread_table[pid])
+
+static inline uint32_t ticks_get(uint32_t prio) { return prio / 2 + 1; }
 
 #endif
