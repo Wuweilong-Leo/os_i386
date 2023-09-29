@@ -21,6 +21,7 @@ struct scheduler *cur_scheduler = &scheduler;
 
 void scheduler_init() {
   RUNNING_THREAD = NULL;
+  cur_scheduler->need_schedule = false;
   cur_scheduler->main_thread = NULL;
   memset(cur_scheduler->thread_table, 0, sizeof(tcb *) * MAX_THREAD_NUM);
   uint8_t *btmp_base = (uint8_t *)kernel_pages_malloc(1);
@@ -37,6 +38,9 @@ void scheduler_rq_join(tcb *thread) {
   uint32_t prio = thread->priority;
   list_push_back(THIS_RQ(prio), &thread->general_tag);
   bitmap_set(RQ_MASK_BITMAP, prio);
+  if (RUNNING_THREAD->priority > prio) {
+    cur_scheduler->need_schedule = true;
+  }
 }
 
 /* 插队 */
@@ -44,6 +48,9 @@ void scheduler_rq_jump(tcb *thread) {
   uint32_t prio = thread->priority;
   list_push_front(THIS_RQ(prio), &thread->general_tag);
   bitmap_set(RQ_MASK_BITMAP, prio);
+  if (RUNNING_THREAD->priority > prio) {
+    cur_scheduler->need_schedule = true;
+  }
 }
 
 static void kernel_thread_entry(thread_func func, void *func_arg) {
@@ -158,6 +165,7 @@ void thread_block(enum task_status tsk_status) {
    * 因为资源而阻塞的线程，一定是卡在此函数中，此函数最后会恢复中断，
    *
    */
+  cur_scheduler->need_schedule = true;
   schedule();
   intr_set_status(intr_save);
 }
@@ -176,6 +184,9 @@ extern void task_trap(tcb *);
 extern void context_load(tcb *);
 
 void schedule() {
+  if (!cur_scheduler->need_schedule) {
+    return;
+  }
   task_trap(RUNNING_THREAD);
   return;
 }
@@ -203,6 +214,8 @@ static inline tcb *next_thread_pick() {
 
 void main_schedule() {
   tcb *cur = RUNNING_THREAD;
+  tcb *next;
+  cur_scheduler->need_schedule = false;
   /* 保证切换时中断关闭 */
   ASSERT(intr_get_status() == INTR_OFF);
   // 只是因为时间片到了
@@ -216,7 +229,7 @@ void main_schedule() {
   }
 
   /* 必须保证ready队列有等待的线程 */
-  tcb *next = next_thread_pick();
+  next = next_thread_pick();
   next->status = TASK_RUNNING;
   RUNNING_THREAD = next;
   /* 更新页目录表和更新tss0特权级的栈指针 */

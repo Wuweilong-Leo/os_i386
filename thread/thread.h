@@ -83,6 +83,7 @@ typedef struct thread_control_block {
 
 struct scheduler {
   tcb *running_thread;
+  bool need_schedule;
   tcb *main_thread;
   tcb *thread_table[MAX_THREAD_NUM];
   struct bitmap rq_mask;
@@ -105,6 +106,6 @@ void thread_stack_init(tcb *pthread, thread_func func, void *func_arg);
 void thread_init(tcb *pthread, char *name, uint8_t prio, thread_func func,
                  void *func_arg);
 
-static inline uint32_t ticks_get(uint32_t prio) { return prio / 2 + 1; }
+static inline uint32_t ticks_get(uint32_t prio) { return prio / 3 + 1; }
 
 #endif

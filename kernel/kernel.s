@@ -4,6 +4,7 @@
 
 extern put_str
 extern idt_table
+extern schedule
 section .data
 global intr_entry_table
 
@@ -28,6 +29,7 @@ intr%1entry:
     push %1
 
     call [idt_table + %1*4]
+    call schedule
     jmp intr_exit
 
 section .data

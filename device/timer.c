@@ -28,7 +28,11 @@ void intr_timer_handler() {
   ASSERT(RUNNING_THREAD->stack_magic == 0x19980820);
   RUNNING_THREAD->elapsed_ticks++;
   ticks++;
-  RUNNING_THREAD->ticks == 0 ? schedule() : RUNNING_THREAD->ticks--;
+  if (RUNNING_THREAD->ticks == 0) {
+    cur_scheduler->need_schedule = true;
+  } else {
+    RUNNING_THREAD->ticks--;
+  }
 }
 
 void timer_init() {
