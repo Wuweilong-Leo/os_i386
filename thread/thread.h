@@ -19,6 +19,8 @@
 #define THIS_RQ(prio) (&cur_scheduler->rq[prio])
 #define RQ_MASK_BITMAP (&cur_scheduler->rq_mask)
 
+enum save_flag { ALL_SAVE_FLAG = 0UL, FAST_SAVE_FLAG = 1UL };
+
 typedef void (*thread_func)(void *);
 typedef uint16_t pid_t;
 
@@ -55,6 +57,7 @@ struct intr_stack {
 };
 
 struct thread_stack {
+  enum save_flag save_flag;
   uint32_t ebp;
   uint32_t ebx;
   uint32_t edi;
@@ -84,13 +87,13 @@ typedef struct thread_control_block {
 struct scheduler {
   tcb *running_thread;
   bool need_schedule;
-  tcb *main_thread;
+  tcb *idle_thread;
   tcb *thread_table[MAX_THREAD_NUM];
   struct bitmap rq_mask;
   /* ready queue */
   struct list rq[PRIO_NUM];
   struct list all_list;
-  struct lock pid_lock;
+  struct mutex pid_mtx;
 } scheduler;
 
 extern struct scheduler *cur_scheduler;
@@ -106,6 +109,11 @@ void thread_stack_init(tcb *pthread, thread_func func, void *func_arg);
 void thread_init(tcb *pthread, char *name, uint8_t prio, thread_func func,
                  void *func_arg);
 
+extern void task_trap(tcb *);
+extern void context_load(tcb *);
+
 static inline uint32_t ticks_get(uint32_t prio) { return prio / 3 + 1; }
+
+static inline bool need_schedule() { return cur_scheduler->need_schedule; }
 
 #endif

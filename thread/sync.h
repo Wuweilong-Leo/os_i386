@@ -11,13 +11,13 @@ struct semaphore {
   struct list waiters;
 };
 
-struct lock {
+struct mutex {
   void *holder; /* 本来是tcb类型的指针，但是防止头文件循环包含，选择void* */
   struct semaphore sem;
 };
 
-void lock_init(struct lock *lck);
-void lock_acquire(struct lock *lck);
-void lock_release(struct lock *lck);
+void mutex_init(struct mutex *mtx);
+void mutex_lock(struct mutex *mtx);
+void mutex_unlock(struct mutex *mtx);
 
 #endif

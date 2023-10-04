@@ -7,7 +7,7 @@
 #define BUF_SIZE 64
 
 struct ioqueue {
-  struct lock lck;
+  struct mutex mtx;
   tcb *producer;
   tcb *consumer;
   char buf[BUF_SIZE];

@@ -11,7 +11,7 @@ struct pool {
   uint32_t addr_base;
   // 内存池管理内存的字节大小
   uint32_t pool_size;
-  struct lock lck;
+  struct mutex mtx;
 };
 enum pool_flags { PF_KERNEL = 1, PF_USER = 2 };
 #define PG_P_1 1

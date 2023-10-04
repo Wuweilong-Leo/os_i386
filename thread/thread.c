@@ -7,11 +7,11 @@
 #include "stdint.h"
 #include "string.h"
 #include "sync.h"
+
 /*
- * 调度时机:
- *        1. 时间片中断
- *        2. 获取不到锁
- *
+ * schedule chance:
+ *        1. time slice
+ *        2. can not acquire lock
  */
 
 /* 优先级反馈调度器 */
@@ -22,7 +22,7 @@ struct scheduler *cur_scheduler = &scheduler;
 void scheduler_init() {
   RUNNING_THREAD = NULL;
   cur_scheduler->need_schedule = false;
-  cur_scheduler->main_thread = NULL;
+  cur_scheduler->idle_thread = NULL;
   memset(cur_scheduler->thread_table, 0, sizeof(tcb *) * MAX_THREAD_NUM);
   uint8_t *btmp_base = (uint8_t *)kernel_pages_malloc(1);
   bitmap_init(RQ_MASK_BITMAP, btmp_base, PRIO_NUM);
@@ -30,7 +30,7 @@ void scheduler_init() {
     list_init(THIS_RQ(i));
   }
   list_init(&cur_scheduler->all_list);
-  lock_init(&cur_scheduler->pid_lock);
+  mutex_init(&cur_scheduler->pid_mtx);
 }
 
 /* 排队 */
@@ -55,13 +55,12 @@ void scheduler_rq_jump(tcb *thread) {
 
 static void kernel_thread_entry(thread_func func, void *func_arg) {
   intr_enable(); // 每个线程都要保证初始状态中断开启
-
   (*func)(func_arg);
 }
 
 // 先不考虑pid不够的情况
 static void pid_alloc(tcb *thread) {
-  lock_acquire(&cur_scheduler->pid_lock);
+  mutex_lock(&cur_scheduler->pid_mtx);
   for (uint32_t i = 0; i < MAX_THREAD_NUM; i++) {
     if (cur_scheduler->thread_table[i] == NULL) {
       thread->pid = i;
@@ -69,14 +68,14 @@ static void pid_alloc(tcb *thread) {
       break;
     }
   }
-  lock_release(&cur_scheduler->pid_lock);
+  mutex_unlock(&cur_scheduler->pid_mtx);
 }
 
 void thread_tcb_init(tcb *pthread, char *name, uint8_t prio) {
   memset(pthread, 0, sizeof(*pthread));
   strcpy(pthread->name, name);
   pthread->status =
-      (pthread == cur_scheduler->main_thread) ? TASK_RUNNING : TASK_READY;
+      (pthread == cur_scheduler->idle_thread) ? TASK_RUNNING : TASK_READY;
   pthread->priority = prio;
   pthread->stack_top = (uint32_t *)((uint32_t)pthread + PG_SIZE);
   pthread->ticks = ticks_get(prio); // 优先级和可执行的ticks相关
@@ -96,13 +95,11 @@ void thread_stack_init(tcb *pthread, thread_func func, void *func_arg) {
   kthread_stack->eip = kernel_thread_entry;
   kthread_stack->func = func;
   kthread_stack->func_arg = func_arg;
+  kthread_stack->save_flag = FAST_SAVE_FLAG;
   kthread_stack->ebp = 0;
   kthread_stack->ebx = 0;
   kthread_stack->esi = 0;
   kthread_stack->edi = 0;
-  /*
-    创建完线程后，栈顶指针指向 栈底 - intr_stack - thread_stack
-  */
 }
 
 void thread_init(tcb *pthread, char *name, uint8_t prio, thread_func func,
@@ -135,17 +132,18 @@ tcb *running_thread_get() {
   return (tcb *)(esp & 0xfffff000);
 }
 
-static void main_thread_make() {
+/* init main thread as idle thread */
+static void idle_thread_make() {
   RUNNING_THREAD = running_thread_get();
-  cur_scheduler->main_thread = RUNNING_THREAD;
-  thread_tcb_init(cur_scheduler->main_thread, "main", 31);
+  cur_scheduler->idle_thread = RUNNING_THREAD;
+  thread_tcb_init(cur_scheduler->idle_thread, "idle", 31);
   list_push_back(&cur_scheduler->all_list, &RUNNING_THREAD->all_list_tag);
 }
 
 void thread_all_init() {
   put_str("thread_all_init begin\n");
   scheduler_init();
-  main_thread_make();
+  idle_thread_make();
   put_str("thread_all_init done\n");
 }
 
@@ -153,7 +151,7 @@ void thread_all_init() {
 void thread_block(enum task_status tsk_status) {
   ASSERT(tsk_status == TASK_BLOCKED || tsk_status == TASK_WAITING ||
          tsk_status == TASK_HANGING);
-  enum intr_status intr_save = intr_disable();
+  enum intr_status int_save = intr_disable();
   RUNNING_THREAD->status = tsk_status;
   // 执行完此函数之后，就切换到其他线程，只有把此线程重新加入就绪队列，才再有机会调度。
   /*
@@ -167,42 +165,38 @@ void thread_block(enum task_status tsk_status) {
    */
   cur_scheduler->need_schedule = true;
   schedule();
-  intr_set_status(intr_save);
+  intr_set_status(int_save);
 }
 
-// 唤醒线程
-void thread_unblock(tcb *tsk) {
-  ASSERT(tsk->status == TASK_BLOCKED || tsk->status == TASK_WAITING ||
-         tsk->status == TASK_HANGING);
-  enum intr_status intr_save = intr_disable();
-  tsk->status = TASK_READY;
-  scheduler_rq_jump(tsk);
-  intr_set_status(intr_save);
+// add thread to ready list
+void thread_unblock(tcb *thread) {
+  ASSERT(thread->status == TASK_BLOCKED || thread->status == TASK_WAITING ||
+         thread->status == TASK_HANGING);
+  enum intr_status int_save = intr_disable();
+  thread->status = TASK_READY;
+  scheduler_rq_jump(thread);
+  intr_set_status(int_save);
 }
-
-extern void task_trap(tcb *);
-extern void context_load(tcb *);
 
 void schedule() {
-  if (!cur_scheduler->need_schedule) {
+  if (!need_schedule()) {
     return;
   }
+  /* save context */
   task_trap(RUNNING_THREAD);
   return;
 }
 
-static inline void task_prio_down(tcb *task) {
-  task->priority = (task->priority + 1) % PRIO_NUM;
+static inline void thread_prio_down(tcb *thread) {
+  thread->priority = (thread->priority + 1) % PRIO_NUM;
 }
 
 static inline uint32_t highest_rq_get() {
-  uint32_t prio = 0;
-  while (bitmap_get(RQ_MASK_BITMAP, prio) == 0) {
-    prio++;
-  }
-  return prio;
+  /* 不可能出现任何队列都不存在任务的情况 */
+  return (uint32_t)bitmap_scan(RQ_MASK_BITMAP, 1, 1);
 }
 
+/* pick thread with highest prio */
 static inline tcb *next_thread_pick() {
   uint32_t prio = highest_rq_get();
   struct list_elem *next_tag = list_pop_front(THIS_RQ(prio));
@@ -214,25 +208,26 @@ static inline tcb *next_thread_pick() {
 
 void main_schedule() {
   tcb *cur = RUNNING_THREAD;
-  tcb *next;
-  cur_scheduler->need_schedule = false;
-  /* 保证切换时中断关闭 */
-  ASSERT(intr_get_status() == INTR_OFF);
-  // 只是因为时间片到了
-  if (cur->status == TASK_RUNNING) {
-    task_prio_down(cur);
-    scheduler_rq_join(cur);
-    cur->ticks = ticks_get(cur->priority);
-    cur->status = TASK_READY;
-  } else {
-    /* 资源抢不到而阻塞不应该再加入ready队列 */
-  }
+  tcb *next = cur;
 
-  /* 必须保证ready队列有等待的线程 */
-  next = next_thread_pick();
-  next->status = TASK_RUNNING;
-  RUNNING_THREAD = next;
-  /* 更新页目录表和更新tss0特权级的栈指针 */
-  process_activate(next);
+  if (need_schedule()) {
+    cur_scheduler->need_schedule = false;
+    /* just because of the time slice */
+    if (cur->status == TASK_RUNNING) {
+      thread_prio_down(cur);
+      scheduler_rq_join(cur);
+      cur->ticks = ticks_get(cur->priority);
+      cur->status = TASK_READY;
+    } else {
+      /* 资源抢不到而阻塞不应该再加入ready队列 */
+    }
+
+    next = next_thread_pick();
+    next->status = TASK_RUNNING;
+    RUNNING_THREAD = next;
+    /* 更新页目录表和更新tss0特权级的栈指针 */
+    process_activate(next);
+  }
+  /* if not need schedule, return to original thread */
   context_load(next);
 }

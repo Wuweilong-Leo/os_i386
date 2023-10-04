@@ -4,28 +4,28 @@
 #include "sync.h"
 #include "thread.h"
 
-static struct lock console_lock;
+static struct mutex console_mutex;
 
-void console_init() { lock_init(&console_lock); }
+void console_init() { mutex_init(&console_mutex); }
 
-void console_acquire() { lock_acquire(&console_lock); }
+void console_acquire() { mutex_lock(&console_mutex); }
 
-void console_release() { lock_release(&console_lock); }
+void console_release() { mutex_unlock(&console_mutex); }
 
 void console_put_str(char *str) {
-  console_acquire(&console_lock);
+  console_acquire(&console_mutex);
   put_str(str);
-  console_release(&console_lock);
+  console_release(&console_mutex);
 }
 
 void console_put_char(char c) {
-  console_acquire(&console_lock);
+  console_acquire(&console_mutex);
   put_char(c);
-  console_release(&console_lock);
+  console_release(&console_mutex);
 }
 
 void console_put_int(int num) {
-  console_acquire(&console_lock);
+  console_acquire(&console_mutex);
   put_int(num);
-  console_release(&console_lock);
+  console_release(&console_mutex);
 }

@@ -18,12 +18,12 @@ uint32_t bitmap_get(struct bitmap *btmp, uint32_t bit_idx) {
   return (btmp->base_addr[byte_off] & (BITMAP_MASK << bit_off)) != 0;
 }
 
-/* 连续申请cnt空闲位 */
-int32_t bitmap_scan(struct bitmap *btmp, uint32_t cnt) {
+/* 连续申请cnt个为val的位, val只能为1或者0 */
+int32_t bitmap_scan(struct bitmap *btmp, uint32_t val, uint32_t cnt) {
   uint32_t left = 0;
   uint32_t right = 0;
   while (right < btmp->bit_num) {
-    if (bitmap_get(btmp, right) != 0) {
+    if (bitmap_get(btmp, right) != val) {
       left = right + 1;
     }
     if (right - left + 1 == cnt) {

@@ -109,7 +109,7 @@ static void general_intr_handler(uint8_t vec_nr) {
   if (vec_nr == EXP_PAGE_FAULT) {
     uint32_t page_fault_vaddr = 0;
     asm volatile("movl %%cr2, %0" : "=r"(page_fault_vaddr));
-    put_str("\npage fault vaddr is");
+    put_str("\npage fault vaddr is ");
     put_int(page_fault_vaddr);
   }
   put_str("\n!!!!!!!  exception message end !!!!!!!\n");

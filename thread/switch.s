@@ -4,6 +4,9 @@
 
 [bits 32]
 
+%define ALL_SAVE_FLAG 0
+%define FAST_SAVE_FLAG 1
+
 section .text
 
 extern main_schedule
@@ -17,8 +20,9 @@ task_trap:
     push edi
     push ebx
     push ebp
+    push FAST_SAVE_FLAG
 
-    mov eax, [esp + 20] ;eax 里存放 当前线程tcb首地址
+    mov eax, [esp + 24] ;eax 里存放 当前线程tcb首地址
     mov [eax], esp ; 把当前esp地址存入tcb中
 
     call main_schedule
@@ -29,9 +33,28 @@ context_load:
     mov eax, [esp + 4];eax 里存放 将执行线程tcb首地址
     mov esp, [eax] ; 把下一个线程的栈地址写入esp,完成栈的切换
 
+    pop eax
+    cmp eax, ALL_SAVE_FLAG
+    je all_load
+
+fast_load:
+
     pop ebp
     pop ebx
     pop edi
     pop esi
 
     ret
+
+all_load:
+
+    popad
+    pop gs
+    pop fs
+    pop es
+    pop ds
+    
+    ; skip error code
+    add esp, 4 
+
+    iret

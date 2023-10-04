@@ -8,9 +8,9 @@ typedef char int8_t;
 typedef short int16_t;
 typedef int int32_t;
 typedef long long int64_t;
+typedef uint8_t bool;
 #define NULL 0
 #define asm __asm
-typedef uint8_t bool;
 #define true 1
 #define false 0
 #endif

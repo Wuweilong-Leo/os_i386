@@ -2,9 +2,10 @@
 #include "debug.h"
 #include "global.h"
 #include "interrupt.h"
+#include "stdint.h"
 
 void ioqueue_init(struct ioqueue *q) {
-  lock_init(&q->lck);
+  mutex_init(&q->mtx);
   q->producer = NULL;
   q->consumer = NULL;
   q->head = 0;
@@ -33,9 +34,9 @@ static void ioq_signal(tcb **waiter) {
 char ioq_getchar(struct ioqueue *q) {
   // 如果缓冲区为空，先阻塞此线程。
   while (ioq_empty(q)) {
-    lock_acquire(&q->lck);
+    mutex_lock(&q->mtx);
     ioq_wait(&q->consumer);
-    lock_release(&q->lck);
+    mutex_unlock(&q->mtx);
   }
 
   char byte = q->buf[q->tail];
@@ -52,9 +53,9 @@ char ioq_getchar(struct ioqueue *q) {
 // 外部保证关中断
 void ioq_putchar(struct ioqueue *q, char byte) {
   while (ioq_full(q)) {
-    lock_acquire(&q->lck);
+    mutex_lock(&q->mtx);
     ioq_wait(&q->producer);
-    lock_release(&q->lck);
+    mutex_unlock(&q->mtx);
   }
   q->buf[q->head] = byte;
   q->head = next_pos_get(q->head);

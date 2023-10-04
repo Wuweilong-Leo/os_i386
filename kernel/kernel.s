@@ -1,10 +1,16 @@
 [bits 32]
 %define ERROR_CODE nop
 %define ZERO push 0
+%define ALL_SAVE_FLAG 0
+%define FAST_SAVE_FLGA 1
 
 extern put_str
+extern put_int
+extern put_char
 extern idt_table
-extern schedule
+extern scheduler
+extern main_schedule
+
 section .data
 global intr_entry_table
 
@@ -19,19 +25,23 @@ intr%1entry:
     push fs
     push gs
     pushad
+    push ALL_SAVE_FLAG
 
-    ; 中断结束命令
+    mov eax, [scheduler]
+    mov [eax], esp
+
+    ; clear int 
     mov al, 0x20
     out 0xa0, al
     out 0x20, al
     
-    ;压入中断号
-    push %1
+    push %1 ; push int num 
+    call [idt_table + %1 * 4]
+    add esp, 4 ; skip int num
 
-    call [idt_table + %1*4]
-    call schedule
-    jmp intr_exit
-
+    ; try schedule 
+    call main_schedule
+    
 section .data
     dd intr%1entry
 %endmacro
@@ -47,7 +57,7 @@ intr_exit:
     pop fs
     pop es
     pop ds
-    add esp, 4 ;越过error_code
+    add esp, 4 ; skip error_code
     iret
 
 VECTOR 0x00, ZERO

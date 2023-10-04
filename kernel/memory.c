@@ -47,8 +47,8 @@ static void mem_pool_init(uint32_t all_mem) {
   pool_init(&kernel_phy_pool, MEM_BITMAP_BASE, kp_start, kernel_free_pages);
   pool_init(&user_phy_pool, MEM_BITMAP_BASE + kbm_len, up_start,
             user_free_pages);
-  lock_init(&kernel_phy_pool.lck);
-  lock_init(&user_phy_pool.lck);
+  mutex_init(&kernel_phy_pool.mtx);
+  mutex_init(&user_phy_pool.mtx);
 
   put_str(" kernel_pool_bitmap_start: ");
   put_int((int)kernel_phy_pool.btmp.base_addr);
@@ -84,7 +84,7 @@ static void *vaddr_get(enum pool_flags pf, uint32_t pg_cnt) {
   int32_t bit_idx_start = -1;
   uint32_t cnt = 0;
   if (pf == PF_KERNEL) {
-    bit_idx_start = bitmap_scan(&kernel_vir_pool.btmp, pg_cnt);
+    bit_idx_start = bitmap_scan(&kernel_vir_pool.btmp, 0, pg_cnt);
     if (bit_idx_start == -1) {
       return NULL;
     }
@@ -94,7 +94,8 @@ static void *vaddr_get(enum pool_flags pf, uint32_t pg_cnt) {
     vaddr_start = kernel_vir_pool.addr_base + bit_idx_start * PG_SIZE;
   } else {
     /* 用户虚拟内存分配 */
-    bit_idx_start = bitmap_scan(&running_thread->user_vaddr_pool.btmp, pg_cnt);
+    bit_idx_start =
+        bitmap_scan(&running_thread->user_vaddr_pool.btmp, 0, pg_cnt);
     if (bit_idx_start == -1) {
       return NULL;
     }
@@ -122,7 +123,7 @@ static inline uint32_t *pde_vaddr_get(uint32_t vaddr) {
 
 /* 获取可用的一页物理内存 */
 static void *paddr_get(struct pool *mem_pool) {
-  int32_t bit_idx = bitmap_scan(&mem_pool->btmp, 1);
+  int32_t bit_idx = bitmap_scan(&mem_pool->btmp, 0, 1);
   if (bit_idx == -1) {
     return NULL;
   }
@@ -162,7 +163,7 @@ static void v2p_mapping(void *vaddr, void *paddr) {
 }
 
 void *malloc_page(enum pool_flags pf, uint32_t pg_cnt) {
-  /* 保证申请的内存小于15M, 因为物理内存最大32M，内核用户各分一半。*/
+  /* 保证申请的内存小于15M, 因为物理内存最大32M，内核用户各分一半 */
   ASSERT(pg_cnt > 0 && pg_cnt < 3840);
   void *vaddr_start = vaddr_get(pf, pg_cnt);
   if (vaddr_start == NULL) {
@@ -193,10 +194,10 @@ void *kernel_pages_malloc(uint32_t pg_cnt) {
 
 /* 分配pg_cnt页内存给用户 */
 void *user_pages_malloc(uint32_t pg_cnt) {
-  lock_acquire(&user_phy_pool.lck);
+  mutex_lock(&user_phy_pool.mtx);
   void *vaddr = malloc_page(PF_USER, pg_cnt);
   (vaddr, 0, pg_cnt * PG_SIZE);
-  lock_release(&user_phy_pool.lck);
+  mutex_unlock(&user_phy_pool.mtx);
   return vaddr;
 }
 
@@ -204,7 +205,7 @@ void *user_pages_malloc(uint32_t pg_cnt) {
 void *target_vaddr_malloc(enum pool_flags pf, uint32_t vaddr) {
   tcb *running_thread = RUNNING_THREAD;
   struct pool *mem_pool = pf == PF_KERNEL ? &kernel_phy_pool : &user_phy_pool;
-  lock_acquire(&mem_pool->lck);
+  mutex_lock(&mem_pool->mtx);
   int32_t bit_idx = -1;
   /* 内核线程的tcb中页目录地址肯定为NULL */
   if (running_thread->pg_dir != NULL && pf == PF_USER) {
@@ -221,7 +222,7 @@ void *target_vaddr_malloc(enum pool_flags pf, uint32_t vaddr) {
     return NULL;
   }
   v2p_mapping(vaddr, page_phy_addr);
-  lock_release(&mem_pool->lck);
+  mutex_unlock(&mem_pool->mtx);
   return (void *)vaddr;
 }
 
