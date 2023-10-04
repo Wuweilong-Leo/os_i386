@@ -166,3 +166,6 @@ enum intr_status intr_set_status(enum intr_status status) {
 void intr_handler_register(uint8_t vec_no, intr_handler func) {
   idt_table[vec_no] = func;
 }
+
+/* handle hardware interrupt tail */
+void hwi_tail_handle() { main_schedule(); }

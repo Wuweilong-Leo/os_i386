@@ -4,12 +4,9 @@
 %define ALL_SAVE_FLAG 0
 %define FAST_SAVE_FLGA 1
 
-extern put_str
-extern put_int
-extern put_char
 extern idt_table
 extern scheduler
-extern main_schedule
+extern hwi_tail_handle
 
 section .data
 global intr_entry_table
@@ -39,19 +36,17 @@ intr%1entry:
     call [idt_table + %1 * 4]
     add esp, 4 ; skip int num
 
-    ; try schedule 
-    call main_schedule
+    call hwi_tail_handle
     
 section .data
     dd intr%1entry
 %endmacro
 
 section .text
-global intr_exit
+global hwi_ret
 
-intr_exit:
-    
-    add esp, 4
+hwi_ret:
+    add esp, 4 ; skip save_flag
     popad
     pop gs
     pop fs
@@ -123,6 +118,7 @@ syscall_entry:
     push fs
     push gs
     pushad
+    push ALL_SAVE_FLAG
     push 0x80
 ; 压入系统调用参数
     push edx
@@ -133,8 +129,11 @@ syscall_entry:
 ; 跳过参数
     add esp, 12
 ; 把系统调用返回值传入栈中，中断返回时又会返回到eax里
-    mov [esp + 8 * 4], eax
-    jmp intr_exit
+    mov [esp + 9 * 4], eax
+
+    add esp, 4 ; skip int num 0x80
+
+    jmp hwi_ret
 
 
 

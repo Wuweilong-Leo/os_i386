@@ -6,7 +6,7 @@
 #include "thread.h"
 #include "tss.h"
 
-extern void intr_exit();
+extern void hwi_ret();
 
 /*
  * 用户程序入口，如果是用户进程，会通过kernel_thread_entry进入此函数, filename
@@ -20,6 +20,7 @@ void process_entry(void *filename) {
   running_thread->stack_top = (uint32_t *)stack;
   struct intr_stack *proc_stack =
       (struct intr_stack *)running_thread->stack_top;
+  proc_stack->save_flag = ALL_SAVE_FLAG;
   proc_stack->edi = 0;
   proc_stack->esi = 0;
   proc_stack->ebp = 0;
@@ -39,7 +40,7 @@ void process_entry(void *filename) {
   proc_stack->esp = target_vaddr_malloc(PF_USER, USER_STACK3_VADDR) + PG_SIZE;
   proc_stack->ss = SELECTOR_U_DATA;
   /* 此时还在内核态，通过中断出口去进入用户态 */
-  asm volatile("movl %0, %%esp; jmp intr_exit" ::"g"(proc_stack) : "memory");
+  asm volatile("movl %0, %%esp; jmp hwi_ret" ::"g"(proc_stack) : "memory");
 }
 
 /* 加载页目录地址到cr3 */

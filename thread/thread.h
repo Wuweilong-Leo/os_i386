@@ -35,7 +35,7 @@ enum task_status {
 
 // 发生中断之后的栈
 struct intr_stack {
-  uint32_t vec_no;
+  enum save_flag save_flag;
   uint32_t edi;
   uint32_t esi;
   uint32_t ebp;
