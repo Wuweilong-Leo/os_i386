@@ -80,4 +80,7 @@ struct gdt_desc {
   uint8_t limit_high_attr_high;
   uint8_t base_high_byte;
 };
+
+#define INLINE static __attribute__((always_inline))
+
 #endif

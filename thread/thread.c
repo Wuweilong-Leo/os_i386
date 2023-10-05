@@ -33,7 +33,7 @@ void scheduler_init() {
   mutex_init(&cur_scheduler->pid_mtx);
 }
 
-static inline void scheduler_rq_join_only(tcb *thread) {
+INLINE void scheduler_rq_join_only(tcb *thread) {
   uint32_t prio = thread->priority;
   list_push_back(THIS_RQ(prio), &thread->ready_tag);
   bitmap_set(RQ_MASK_BITMAP, prio);
@@ -47,7 +47,7 @@ void scheduler_rq_join(tcb *thread) {
   }
 }
 
-static inline void scheduler_rq_jump_only(tcb *thread) {
+INLINE void scheduler_rq_jump_only(tcb *thread) {
   uint32_t prio = thread->priority;
   list_push_front(THIS_RQ(prio), &thread->ready_tag);
   bitmap_set(RQ_MASK_BITMAP, prio);
@@ -61,7 +61,7 @@ void scheduler_rq_jump(tcb *thread) {
   }
 }
 
-static inline void scheduler_rq_leave_only(tcb *thread) {
+INLINE void scheduler_rq_leave_only(tcb *thread) {
   uint32_t prio = thread->priority;
 
   list_remove(&thread->ready_tag);
@@ -217,17 +217,17 @@ void schedule() {
   return;
 }
 
-static inline void thread_prio_change(tcb *thread) {
+INLINE void thread_prio_change(tcb *thread) {
   thread->priority = (thread->priority + 1) % PRIO_NUM;
 }
 
-static inline uint32_t highest_rq_get() {
+INLINE uint32_t highest_rq_get() {
   /* 不可能出现任何队列都不存在任务的情况 */
   return (uint32_t)bitmap_scan(RQ_MASK_BITMAP, 1, 1);
 }
 
 /* pick thread with highest prio */
-static inline tcb *next_thread_pick() {
+INLINE tcb *next_thread_pick() {
   uint32_t prio = highest_rq_get();
   struct list_elem *next_tag = list_first_elem(THIS_RQ(prio));
   return ELEM2ENTRY(tcb, ready_tag, next_tag);
