@@ -77,6 +77,7 @@ typedef struct thread_control_block {
   char name[16];
   uint32_t ticks;
   uint32_t elapsed_ticks;
+  /* running thread still in rq */
   struct list_elem ready_tag;
   /* for mutex */
   struct list_elem pend_tag;

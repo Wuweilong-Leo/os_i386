@@ -33,27 +33,35 @@ void scheduler_init() {
   mutex_init(&cur_scheduler->pid_mtx);
 }
 
-/* 排队 */
-void scheduler_rq_join(tcb *thread) {
+static inline void scheduler_rq_join_only(tcb *thread) {
   uint32_t prio = thread->priority;
   list_push_back(THIS_RQ(prio), &thread->ready_tag);
   bitmap_set(RQ_MASK_BITMAP, prio);
-  if (RUNNING_THREAD->priority > prio) {
+}
+
+/* 排队 */
+void scheduler_rq_join(tcb *thread) {
+  scheduler_rq_join_only(thread);
+  if (RUNNING_THREAD->priority > thread->priority) {
     cur_scheduler->need_schedule = true;
   }
+}
+
+static inline void scheduler_rq_jump_only(tcb *thread) {
+  uint32_t prio = thread->priority;
+  list_push_front(THIS_RQ(prio), &thread->ready_tag);
+  bitmap_set(RQ_MASK_BITMAP, prio);
 }
 
 /* 插队 */
 void scheduler_rq_jump(tcb *thread) {
-  uint32_t prio = thread->priority;
-  list_push_front(THIS_RQ(prio), &thread->ready_tag);
-  bitmap_set(RQ_MASK_BITMAP, prio);
-  if (RUNNING_THREAD->priority > prio) {
+  scheduler_rq_jump_only(thread);
+  if (RUNNING_THREAD->priority > thread->priority) {
     cur_scheduler->need_schedule = true;
   }
 }
 
-void scheduler_rq_leave(tcb *thread) {
+static inline void scheduler_rq_leave_only(tcb *thread) {
   uint32_t prio = thread->priority;
 
   list_remove(&thread->ready_tag);
@@ -61,6 +69,12 @@ void scheduler_rq_leave(tcb *thread) {
   if (list_empty(THIS_RQ(prio))) {
     bitmap_clear(RQ_MASK_BITMAP, prio);
   }
+}
+
+/* thread leaves rq */
+void scheduler_rq_leave(tcb *thread) {
+  scheduler_rq_leave_only(thread);
+
   /* if running thread leaves the rq, need schedule */
   if (thread == RUNNING_THREAD) {
     cur_scheduler->need_schedule = true;
@@ -151,6 +165,8 @@ static void idle_thread_make() {
   RUNNING_THREAD = running_thread_get();
   cur_scheduler->idle_thread = RUNNING_THREAD;
   thread_tcb_init(cur_scheduler->idle_thread, "idle", 31);
+  /* running thread should be in rq */
+  scheduler_rq_join(RUNNING_THREAD);
   list_push_back(&cur_scheduler->all_list, &RUNNING_THREAD->all_list_tag);
 }
 
@@ -201,7 +217,7 @@ void schedule() {
   return;
 }
 
-static inline void thread_prio_down(tcb *thread) {
+static inline void thread_prio_change(tcb *thread) {
   thread->priority = (thread->priority + 1) % PRIO_NUM;
 }
 
@@ -213,27 +229,25 @@ static inline uint32_t highest_rq_get() {
 /* pick thread with highest prio */
 static inline tcb *next_thread_pick() {
   uint32_t prio = highest_rq_get();
-  struct list_elem *next_tag = list_pop_front(THIS_RQ(prio));
-  if (list_empty(THIS_RQ(prio))) {
-    bitmap_clear(RQ_MASK_BITMAP, prio);
-  }
+  struct list_elem *next_tag = list_first_elem(THIS_RQ(prio));
   return ELEM2ENTRY(tcb, ready_tag, next_tag);
 }
 
 void main_schedule() {
   tcb *cur = RUNNING_THREAD;
   tcb *next = cur;
+  uint32_t prev_prio = cur->priority;
 
   if (need_schedule()) {
     cur_scheduler->need_schedule = false;
+
     /* just because of the time slice */
     if (cur->status == TASK_RUNNING) {
-      thread_prio_down(cur);
-      scheduler_rq_join(cur);
+      scheduler_rq_leave_only(cur);
+      thread_prio_change(cur);
+      scheduler_rq_join_only(cur);
       cur->ticks = ticks_get(cur->priority);
       cur->status = TASK_READY;
-    } else {
-      /* 资源抢不到而阻塞不应该再加入ready队列 */
     }
 
     next = next_thread_pick();
@@ -242,6 +256,7 @@ void main_schedule() {
     /* 更新页目录表和更新tss0特权级的栈指针 */
     process_activate(next);
   }
-  /* if not need schedule, return to original thread */
+
+  /* if not need schedule, return to the original thread */
   context_load(next);
 }
