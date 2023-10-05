@@ -36,7 +36,7 @@ void scheduler_init() {
 /* 排队 */
 void scheduler_rq_join(tcb *thread) {
   uint32_t prio = thread->priority;
-  list_push_back(THIS_RQ(prio), &thread->general_tag);
+  list_push_back(THIS_RQ(prio), &thread->ready_tag);
   bitmap_set(RQ_MASK_BITMAP, prio);
   if (RUNNING_THREAD->priority > prio) {
     cur_scheduler->need_schedule = true;
@@ -46,7 +46,7 @@ void scheduler_rq_join(tcb *thread) {
 /* 插队 */
 void scheduler_rq_jump(tcb *thread) {
   uint32_t prio = thread->priority;
-  list_push_front(THIS_RQ(prio), &thread->general_tag);
+  list_push_front(THIS_RQ(prio), &thread->ready_tag);
   bitmap_set(RQ_MASK_BITMAP, prio);
   if (RUNNING_THREAD->priority > prio) {
     cur_scheduler->need_schedule = true;
@@ -203,7 +203,7 @@ static inline tcb *next_thread_pick() {
   if (list_empty(THIS_RQ(prio))) {
     bitmap_clear(RQ_MASK_BITMAP, prio);
   }
-  return ELEM2ENTRY(tcb, general_tag, next_tag);
+  return ELEM2ENTRY(tcb, ready_tag, next_tag);
 }
 
 void main_schedule() {

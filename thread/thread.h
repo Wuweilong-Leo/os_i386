@@ -77,7 +77,7 @@ typedef struct thread_control_block {
   char name[16];
   uint32_t ticks;
   uint32_t elapsed_ticks;
-  struct list_elem general_tag;
+  struct list_elem ready_tag;
   struct list_elem all_list_tag;
   uint32_t *pg_dir;
   struct pool user_vaddr_pool;
