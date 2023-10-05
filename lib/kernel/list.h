@@ -25,4 +25,5 @@ struct list_elem *list_pop_front(struct list *list);
 bool list_elem_find(struct list *list, struct list_elem *e);
 uint32_t list_len(struct list *list);
 bool list_empty(struct list *list);
+struct list_elem *list_first_elem(struct list *list);
 #endif

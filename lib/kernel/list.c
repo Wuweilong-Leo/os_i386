@@ -49,6 +49,8 @@ bool list_elem_find(struct list *list, struct list_elem *e) {
   return false;
 }
 
+struct list_elem *list_first_elem(struct list *list) { return list->head.next; }
+
 uint32_t list_len(struct list *list) {
   struct list_elem *tmp = list->head.next;
   uint32_t cnt = 0;
