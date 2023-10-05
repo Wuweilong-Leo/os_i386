@@ -15,8 +15,8 @@ void sem_down(struct semaphore *sem) {
   enum intr_status int_save = intr_disable();
   // 用while防止虚假唤醒
   while (sem->val == 0) {
-    if (!list_elem_find(&sem->waiters, &RUNNING_THREAD->ready_tag)) {
-      list_push_back(&sem->waiters, &RUNNING_THREAD->ready_tag);
+    if (!list_elem_find(&sem->waiters, &RUNNING_THREAD->pend_tag)) {
+      list_push_back(&sem->waiters, &RUNNING_THREAD->pend_tag);
     }
     // 这里切换到其它线程了。
     thread_block(TASK_BLOCKED);
@@ -30,7 +30,7 @@ void sem_up(struct semaphore *sem) {
   ASSERT(sem->val == 0);
   if (!list_empty(&sem->waiters)) {
     tcb *thread_blocked =
-        ELEM2ENTRY(tcb, ready_tag, list_pop_front(&sem->waiters));
+        ELEM2ENTRY(tcb, pend_tag, list_pop_front(&sem->waiters));
     thread_unblock(thread_blocked);
   }
   sem->val++;

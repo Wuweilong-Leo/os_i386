@@ -53,6 +53,20 @@ void scheduler_rq_jump(tcb *thread) {
   }
 }
 
+void scheduler_rq_leave(tcb *thread) {
+  uint32_t prio = thread->priority;
+
+  list_remove(&thread->ready_tag);
+  /* if list is empty, clear mask */
+  if (list_empty(THIS_RQ(prio))) {
+    bitmap_clear(RQ_MASK_BITMAP, prio);
+  }
+  /* if running thread leaves the rq, need schedule */
+  if (thread == RUNNING_THREAD) {
+    cur_scheduler->need_schedule = true;
+  }
+}
+
 static void kernel_thread_entry(thread_func func, void *func_arg) {
   intr_enable(); // 每个线程都要保证初始状态中断开启
   (*func)(func_arg);
@@ -163,7 +177,7 @@ void thread_block(enum task_status tsk_status) {
    * 因为资源而阻塞的线程，一定是卡在此函数中，此函数最后会恢复中断，
    *
    */
-  cur_scheduler->need_schedule = true;
+  scheduler_rq_leave(RUNNING_THREAD);
   schedule();
   intr_set_status(int_save);
 }

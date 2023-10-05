@@ -78,6 +78,8 @@ typedef struct thread_control_block {
   uint32_t ticks;
   uint32_t elapsed_ticks;
   struct list_elem ready_tag;
+  /* for mutex */
+  struct list_elem pend_tag;
   struct list_elem all_list_tag;
   uint32_t *pg_dir;
   struct pool user_vaddr_pool;
