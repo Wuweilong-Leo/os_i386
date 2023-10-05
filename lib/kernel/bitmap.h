@@ -1,7 +1,7 @@
 #ifndef BIT_MAP_H
 #define BIT_MAP_H
+#include "global.h"
 #include "stdint.h"
-
 struct bitmap {
   /* 位图基地址 */
   uint8_t *base_addr;
@@ -13,7 +13,7 @@ struct bitmap {
 
 #define BITMAP_MASK 1
 
-static inline uint32_t bit_num_2_byte_len(uint32_t bit_num) {
+INLINE uint32_t bit_num_2_byte_len(uint32_t bit_num) {
   return (bit_num % 8) ? (bit_num / 8 + 1) : (bit_num / 8);
 }
 

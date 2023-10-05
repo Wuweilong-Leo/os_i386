@@ -1,18 +1,20 @@
 #ifndef IO_H
 #define IO_H
 #include "stdint.h"
-static inline void outb(uint16_t port, uint8_t data) {
+#include "global.h"
+
+INLINE void outb(uint16_t port, uint8_t data) {
   asm volatile("outb %b0, %w1" ::"a"(data), "Nd"(port));
 }
-static inline void outsw(uint16_t port, const void *addr, uint32_t word_cnt) {
+INLINE void outsw(uint16_t port, const void *addr, uint32_t word_cnt) {
   asm volatile("cld; rep outsw" : "+S"(addr), "+c"(word_cnt) : "d"(port));
 }
-static inline uint8_t inb(uint16_t port) {
+INLINE uint8_t inb(uint16_t port) {
   uint8_t data;
   asm volatile("inb %w1, %b0" : "=a"(data) : "Nd"(port));
   return data;
 }
-static inline uint16_t insw(uint16_t port, void *addr, uint32_t word_cnt) {
+INLINE uint16_t insw(uint16_t port, void *addr, uint32_t word_cnt) {
   asm volatile("cld; rep insw"
                : "+D"(addr), "+c"(word_cnt)
                : "d"(port)

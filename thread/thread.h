@@ -115,8 +115,8 @@ void thread_init(tcb *pthread, char *name, uint8_t prio, thread_func func,
 extern void task_trap(tcb *);
 extern void context_load(tcb *);
 
-static inline uint32_t ticks_get(uint32_t prio) { return prio / 3 + 1; }
+INLINE uint32_t ticks_get(uint32_t prio) { return prio / 3 + 1; }
 
-static inline bool need_schedule() { return cur_scheduler->need_schedule; }
+INLINE bool need_schedule() { return cur_scheduler->need_schedule; }
 
 #endif

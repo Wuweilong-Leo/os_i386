@@ -1,5 +1,6 @@
 #ifndef KEYBOARD_H
 #define KEYBOARD_H
+#include "global.h"
 #include "ioqueue.h"
 #include "stdint.h"
 
@@ -44,11 +45,9 @@ enum ctrl_key_break_code {
 /*
  * breakcode 就是 makecode 第8位置1
  */
-static inline bool break_code(uint16_t scan_code) {
-  return (scan_code & 0x0080) != 0;
-}
+INLINE bool break_code(uint16_t scan_code) { return (scan_code & 0x0080) != 0; }
 
-static inline uint16_t break_code2make_code(uint16_t break_code) {
+INLINE uint16_t break_code2make_code(uint16_t break_code) {
   return break_code & 0xff7f;
 }
 

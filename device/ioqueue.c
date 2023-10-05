@@ -12,9 +12,7 @@ void ioqueue_init(struct ioqueue *q) {
   q->tail = 0;
 }
 
-static inline uint32_t next_pos_get(uint32_t pos) {
-  return (pos + 1) % BUF_SIZE;
-}
+INLINE uint32_t next_pos_get(uint32_t pos) { return (pos + 1) % BUF_SIZE; }
 
 bool ioq_full(struct ioqueue *q) { return next_pos_get(q->head) == q->tail; }
 

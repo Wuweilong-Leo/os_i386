@@ -1,5 +1,6 @@
 #include "memory.h"
 #include "debug.h"
+#include "global.h"
 #include "print.h"
 #include "thread.h"
 
@@ -16,7 +17,7 @@ struct pool kernel_phy_pool, user_phy_pool;
 // 虚拟内存池
 struct pool kernel_vir_pool;
 
-static inline uint32_t btmp_bytes_len4pages(uint32_t pool_size_pg) {
+INLINE uint32_t btmp_bytes_len4pages(uint32_t pool_size_pg) {
   return (pool_size_pg % 8 == 0) ? (pool_size_pg / 8) : (pool_size_pg / 8 + 1);
 }
 
@@ -109,14 +110,14 @@ static void *vaddr_get(enum pool_flags pf, uint32_t pg_cnt) {
 }
 
 /* 获取本虚拟地址的页表项的虚拟地址 */
-static inline uint32_t *pte_vaddr_get(uint32_t vaddr) {
+INLINE uint32_t *pte_vaddr_get(uint32_t vaddr) {
   uint32_t *pte = (uint32_t *)(0xffc00000 + ((vaddr & 0xffc00000) >> 10) +
                                PTE_IDX(vaddr) * 4);
   return pte;
 }
 
 /* 获取本虚拟地址的页目录项的虚拟地址 */
-static inline uint32_t *pde_vaddr_get(uint32_t vaddr) {
+INLINE uint32_t *pde_vaddr_get(uint32_t vaddr) {
   uint32_t *pde = (uint32_t *)(0xfffff000 + PDE_IDX(vaddr) * 4);
   return pde;
 }
